@@ -304,7 +304,6 @@ struct RippleCircle: View {
             .scaleEffect(scale)
             .opacity(opacity)
             .onAppear {
-                // 核心动效：不断向外扩散并消失
                 withAnimation(
                     Animation.easeOut(duration: 3.0)
                         .delay(delay)
@@ -325,54 +324,41 @@ struct PlayPage: View {
     
     var body: some View {
         ZStack(alignment: .bottom) {
-            // 背景层
             Color(hex: "050505").ignoresSafeArea()
             
-            // --- 顶部内容区 ---
             VStack(spacing: 0) {
-                // 顶部手柄
                 Capsule()
                     .fill(Color.white.opacity(0.3))
                     .frame(width: 40, height: 5)
                     .padding(.top, 12)
                 
-                // 标题
                 VStack(spacing: 8) {
-                    Text(selectedTabTitle)
+                    Text(selectedTab == 0 ? "白噪音" : (selectedTab == 1 ? "自然之声" : "节奏"))
                         .font(.system(size: 28, weight: .bold))
                         .foregroundColor(.white)
-                    Text("夜间好梦")
-                        .font(.system(size: 14))
-                        .foregroundColor(.gray)
+                    Text("夜间好梦").font(.system(size: 14)).foregroundColor(.gray)
                 }
                 .padding(.top, 30)
                 
-                // 【月亮位置控制】：通过这个 Spacer 的高度调整月亮距离标题的远近
-                Spacer().frame(height: 60) 
+                Spacer().frame(height: 60) // 月亮位置控制
                 
-                // --- 核心动效区 (月亮 + 水波纹) ---
                 ZStack {
-                    // 水波纹层
                     ForEach(0..<3) { i in
                         RippleCircle(delay: Double(i) * 1.0)
                     }
-                    
-                    // 月亮图标 (SF Symbols)
                     Image(systemName: "moon.stars.fill")
                         .font(.system(size: 80))
                         .foregroundColor(.white.opacity(0.8))
                         .shadow(color: .white.opacity(0.3), radius: 20)
                 }
                 .frame(width: 300, height: 300)
-                // 【月亮微调】：y 为负数向上移，正数向下移
-                .offset(y: -10) 
+                .offset(y: -10)
                 
-                Spacer() // 自动推挤
+                Spacer()
             }
             
-            // --- 底部交互面板 (托盘式设计) ---
+            // 底部交互面板
             VStack(spacing: 25) {
-                // 标签切换
                 HStack(spacing: 12) {
                     TabButton(title: "白噪音", isSelected: selectedTab == 0) { selectedTab = 0 }
                     TabButton(title: "自然音", isSelected: selectedTab == 1) { selectedTab = 1 }
@@ -380,8 +366,7 @@ struct PlayPage: View {
                 }
                 .padding(.horizontal, 20)
                 
-                // 紧凑型玻璃控制栏
-                HStack(spacing: 22) { // 缩短间距
+                HStack(spacing: 22) {
                     ControlIconGlass(icon: "pause.fill", isMain: true)
                     ControlIconGlass(icon: "arrow.clockwise")
                     ControlIconGlass(icon: "timer")
@@ -389,13 +374,12 @@ struct PlayPage: View {
                 }
                 .padding(.vertical, 10)
                 
-                // 发现卡片 (连接到底部)
                 Button(action: {}) {
                     Text("发现")
                         .font(.system(size: 18, weight: .semibold))
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
-                        .frame(height: 85) // 增加高度
+                        .frame(height: 85)
                         .background(
                             ZStack {
                                 Color(hex: "0F0F0F").opacity(0.74)
@@ -408,105 +392,59 @@ struct PlayPage: View {
                                 .stroke(Color.white.opacity(0.15), lineWidth: 1)
                         )
                 }
-                .padding(.bottom, -15) // 消除底部安全区留白，视觉上连接屏幕
+                .padding(.bottom, -15)
             }
             .frame(maxWidth: .infinity)
             .background(
-                Color(hex: "0F0F0F").opacity(0.5)
-                    .blur(radius: 30)
-                    .ignoresSafeArea()
+                Color(hex: "0F0F0F").opacity(0.5).blur(radius: 30).ignoresSafeArea()
             )
             .offset(y: innerDragOffset)
         }
-        // 整个页面的下拉手势
         .gesture(
             DragGesture().onChanged { v in 
                 if v.translation.height > 0 { innerDragOffset = v.translation.height } 
             }
             .onEnded { v in
                 if v.translation.height > 150 { isPresented = false }
-                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) { innerDragOffset = 0 }
+                withAnimation(.spring()) { innerDragOffset = 0 }
             }
         )
     }
-    
-    private var selectedTabTitle: String {
-        ["白噪音", "自然之声", "节奏"][selectedTab]
-    }
-}
 
-// MARK: - 3. 玻璃感子组件
-struct ControlIconGlass: View {
-    var icon: String
-    var isMain: Bool = false
-    
-    var body: some View {
-        ZStack {
-            Circle()
-                .fill(Color.white.opacity(0.1))
-                .overlay(
-                    Circle()
-                        .stroke(
-                            LinearGradient(colors: [.white.opacity(0.4), .clear], startPoint: .topLeading, endPoint: .bottomTrailing),
-                            lineWidth: 1
-                        )
-                )
-            
-            Image(systemName: icon)
-                .font(.system(size: isMain ? 22 : 16, weight: .bold))
-                .foregroundColor(.white)
+    // --- 将子组件嵌套在内，解决 'Cannot find in scope' 报错 ---
+    struct TabButton: View {
+        var title: String; var isSelected: Bool; var action: () -> Void
+        var body: some View {
+            Button(action: action) {
+                Text(title).font(.system(size: 14, weight: isSelected ? .bold : .medium))
+                    .foregroundColor(isSelected ? .white : .white.opacity(0.4))
+                    .frame(maxWidth: .infinity).frame(height: 55)
+                    .background(Color(hex: "0F0F0F").opacity(isSelected ? 0.74 : 0.2))
+                    .cornerRadius(18)
+                    .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color.white.opacity(isSelected ? 0.3 : 0.1), lineWidth: 1))
+            }
         }
-        .frame(width: isMain ? 65 : 52, height: isMain ? 65 : 52)
     }
-}
 
-struct TabButton: View {
-    var title: String
-    var isSelected: Bool
-    var action: () -> Void
-    
-    var body: some View {
-        Button(action: action) {
-            Text(title)
-                .font(.system(size: 14, weight: isSelected ? .bold : .medium))
-                .foregroundColor(isSelected ? .white : .white.opacity(0.4))
-                .frame(maxWidth: .infinity)
-                .frame(height: 55)
-                .background(Color(hex: "0F0F0F").opacity(isSelected ? 0.74 : 0.2))
-                .cornerRadius(18)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 18)
-                        .stroke(Color.white.opacity(isSelected ? 0.3 : 0.1), lineWidth: 1)
-                )
+    struct ControlIconGlass: View {
+        var icon: String; var isMain: Bool = false
+        var body: some View {
+            ZStack {
+                Circle().fill(Color.white.opacity(0.1))
+                    .overlay(Circle().stroke(LinearGradient(colors: [.white.opacity(0.4), .clear], startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 1))
+                Image(systemName: icon).font(.system(size: isMain ? 22 : 16, weight: .bold)).foregroundColor(.white)
+            }
+            .frame(width: isMain ? 65 : 52, height: isMain ? 65 : 52)
         }
     }
 }
 
-// MARK: - 4. 辅助工具
+// MARK: - 3. 辅助 Shape 
 struct RoundedCorner: Shape {
-    var radius: CGFloat = .infinity
-    var corners: UIRectCorner = .allCorners
+    var radius: CGFloat = .infinity; var corners: UIRectCorner = .allCorners
     func path(in rect: CGRect) -> Path {
         let path = UIBezierPath(roundedRect: rect, byRoundingCorners: corners, cornerRadii: CGSize(width: radius, height: radius))
         return Path(path.cgPath)
     }
 }
 
-extension Color {
-    init(hex: String) {
-        let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
-        var int: UInt64 = 0
-        Scanner(string: hex).scanHexInt64(&int)
-        let a, r, g, b: UInt64
-        switch hex.count {
-        case 6: (a, r, g, b) = (255, int >> 16, int >> 8 & 0xFF, int & 0xFF)
-        default: (a, r, g, b) = (255, 0, 0, 0)
-        }
-        self.init(.sRGB, red: Double(r) / 255, green: Double(g) / 255, blue: Double(b) / 255, opacity: Double(a) / 255)
-    }
-}
-
-// MARK: - 预览
-#Preview {
-    PlayPage(isPresented: .constant(true))
-}
