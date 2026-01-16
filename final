@@ -292,26 +292,21 @@ struct ContentView: View {
 
 import SwiftUI
 
-// MARK: - 1. 水波纹动效组件（已修改：渐变线条，增强视觉效果）
+// MARK: - 1. 水波纹动效组件
 struct RippleCircle: View {
     @State private var scale: CGFloat = 0.2
-    @State private var opacity: Double = 0.8 // 初始不透明度提高
+    @State private var opacity: Double = 0.8 
     var delay: Double 
     
     var body: some View {
         Circle()
-            // 修改点：使用 AngularGradient 或 LinearGradient 结合透明度实现线条渐变
-            // 这里的线条使用了渐变色，使其看起来更有质感
             .stroke(
                 LinearGradient(
-                    gradient: Gradient(colors: [
-                        Color.white.opacity(0.8), // 较亮的部分
-                        Color.white.opacity(0.2)  // 较暗的部分
-                    ]),
+                    gradient: Gradient(colors: [Color.white.opacity(0.8), Color.white.opacity(0.0)]),
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 ),
-                lineWidth: 2 // 修改点：线条加粗，使其更明显
+                lineWidth: 2 // 加粗线条
             )
             .scaleEffect(scale)
             .opacity(opacity)
@@ -321,7 +316,7 @@ struct RippleCircle: View {
                         .delay(delay)
                         .repeatForever(autoreverses: false)
                 ) {
-                    scale = 1.6 // 扩散范围稍作调整
+                    scale = 1.6
                     opacity = 0.0
                 }
             }
@@ -352,15 +347,12 @@ struct PlayPage: View {
                 }
                 .padding(.top, 30)
                 
-                Spacer().frame(height: 60) // 月亮位置控制
+                Spacer().frame(height: 60)
                 
                 ZStack {
-                    // 水波纹层
                     ForEach(0..<3) { i in
                         RippleCircle(delay: Double(i) * 1.0)
                     }
-                    
-                    // 月亮中心图标
                     Image(systemName: "moon.stars.fill")
                         .font(.system(size: 80))
                         .foregroundColor(.white.opacity(0.9))
@@ -372,7 +364,7 @@ struct PlayPage: View {
                 Spacer()
             }
             
-            // 底部交互面板
+            // 底部控制面板
             VStack(spacing: 25) {
                 HStack(spacing: 12) {
                     TabButton(title: "白噪音", isSelected: selectedTab == 0) { selectedTab = 0 }
@@ -410,9 +402,7 @@ struct PlayPage: View {
                 .padding(.bottom, -15)
             }
             .frame(maxWidth: .infinity)
-            .background(
-                Color(hex: "0F0F0F").opacity(0.5).blur(radius: 30).ignoresSafeArea()
-            )
+            .background(Color(hex: "0F0F0F").opacity(0.5).blur(radius: 30).ignoresSafeArea())
             .offset(y: innerDragOffset)
         }
         .gesture(
@@ -426,6 +416,7 @@ struct PlayPage: View {
         )
     }
 
+    // 内部嵌套组件，解决 Scope 问题
     struct TabButton: View {
         var title: String; var isSelected: Bool; var action: () -> Void
         var body: some View {
@@ -453,28 +444,12 @@ struct PlayPage: View {
     }
 }
 
+// 辅助工具 - 放在当前文件最外层
 struct RoundedCorner: Shape {
     var radius: CGFloat = .infinity; var corners: UIRectCorner = .allCorners
     func path(in rect: CGRect) -> Path {
         let path = UIBezierPath(roundedRect: rect, byRoundingCorners: corners, cornerRadii: CGSize(width: radius, height: radius))
         return Path(path.cgPath)
-    }
-}
-
-// 确保你有一个 Color 的 hex 初始化，如果没有请添加：
-extension Color {
-    init(hex: String) {
-        let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
-        var int: UInt64 = 0
-        Scanner(string: hex).scanHexInt64(&int)
-        let a, r, g, b: UInt64
-        switch hex.count {
-        case 3: (a, r, g, b) = (255, (int >> 8) * 17, (int >> 4 & 0xF) * 17, (int & 0xF) * 17)
-        case 6: (a, r, g, b) = (255, int >> 16, int >> 8 & 0xFF, int & 0xFF)
-        case 8: (a, r, g, b) = (int >> 24, int >> 16 & 0xFF, int >> 8 & 0xFF, int & 0xFF)
-        default: (a, r, g, b) = (1, 1, 1, 0)
-        }
-        self.init(.sRGB, red: Double(r) / 255, green: Double(g) / 255, blue: Double(b) / 255, opacity: Double(a) / 255)
     }
 }
 
