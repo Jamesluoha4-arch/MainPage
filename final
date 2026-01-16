@@ -14,10 +14,9 @@ struct MySleepApp: App { // 遵循 App 协议
 
 
 
-
 import SwiftUI
 
-// MARK: - 1. 基础工具与颜色扩展
+// MARK: - 1. 基础工具与颜色
 extension Color {
     init(hex: String) {
         let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
@@ -30,11 +29,11 @@ extension Color {
         case 8: (a, r, g, b) = (int >> 24, int >> 16 & 0xFF, int >> 8 & 0xFF, int & 0xFF)
         default: (a, r, g, b) = (1, 1, 1, 0)
         }
-        self.init(.sRGB, red: Double(r) / 255, green: Double(g) / 255, blue: Double(b) / 255, opacity: Double(a) / 255)
+        self.init(.sRGB, red: Double(r) / 255, green: Double(g) / 255, blue:  Double(b) / 255, opacity: Double(a) / 255)
     }
 }
 
-// MARK: - 2. 动效组件
+// MARK: - 2. 动效组件：流星与漂浮圆
 struct StarMeteorView: View {
     @State private var animate = false
     var delay: Double = 0
@@ -62,6 +61,7 @@ struct StarMeteorView: View {
     }
 }
 
+// 内部强虚化漂浮小圆
 struct FloatingBlurCircle: View {
     @State private var move = false
     var body: some View {
@@ -69,8 +69,8 @@ struct FloatingBlurCircle: View {
             Circle()
                 .fill(Color.white.opacity(0.35))
                 .frame(width: 40, height: 40)
-                .blur(radius: 20)
-                .offset(x: move ? proxy.size.width - 40 : 5,
+                .blur(radius: 20) // 强虚化效果
+                .offset(x: move ? proxy.size.width - 40 : 5, 
                         y: move ? proxy.size.height - 40 : 5)
                 .onAppear {
                     withAnimation(.easeInOut(duration: 4).repeatForever(autoreverses: true)) {
@@ -93,10 +93,12 @@ struct GlassModifier: ViewModifier {
             .background(
                 ZStack {
                     Color(hex: "0F0F0F").opacity(opacity)
+                    
                     if addFloatingEffect {
                         FloatingBlurCircle()
                             .mask(RoundedRectangle(cornerRadius: cornerRadius))
                     }
+                    
                     LinearGradient(stops: [
                         .init(color: .white.opacity(0.12), location: 0),
                         .init(color: .clear, location: 0.5)
@@ -117,7 +119,7 @@ extension View {
     }
 }
 
-// MARK: - 4. 业务子组件
+// MARK: - 4. 子组件
 struct SceneCard: View {
     var title: String
     var imageName: String
@@ -129,21 +131,10 @@ struct SceneCard: View {
     var body: some View {
         ZStack(alignment: titleAlignment) {
             if showMeteor { StarMeteorView(delay: meteorDelay) }
-            // 占位图逻辑：如果没图片会显示灰色背景
-            Image(imageName)
-                .resizable()
-                .scaledToFill()
-                .frame(height: height)
-                .background(Color.white.opacity(0.05))
-                .clipped()
-            
-            Text(title)
-                .font(.system(size: 18, weight: .bold))
-                .foregroundColor(.white)
-                .padding(16)
+            Image(imageName).resizable().scaledToFit().padding(12)
+            Text(title).font(.system(size: 18, weight: .bold)).foregroundColor(.white).padding(16)
         }
-        .frame(maxWidth: .infinity)
-        .frame(height: height)
+        .frame(maxWidth: .infinity).frame(height: height)
         .glassStyle(opacity: 1.0)
     }
 }
@@ -163,7 +154,7 @@ struct SoundBubble: View {
 // MARK: - 5. 主界面
 struct ContentView: View {
     @State private var bannerAnimate = false
-    @State private var soundSectionOpacity: Double = 0
+    @State private var soundSectionOpacity: Double = 0 // 用于滚动渐显
     
     var currentDateText: String {
         let formatter = DateFormatter()
@@ -178,72 +169,10 @@ struct ContentView: View {
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(spacing: 40) {
                     
-                    // --- 第一部分：顶部导航与 Banner ---
-                    VStack(spacing: 28) {
-                        // 导航栏
-                        HStack {
-                            Circle()
-                                .stroke(Color.white.opacity(0.4), lineWidth: 1)
-                                .frame(width: 34, height: 34)
-                                .overlay(Text("logo").font(.system(size: 8)).foregroundColor(.white))
-                            Text("Brand Name").font(.system(size: 20, weight: .bold)).foregroundColor(.white)
-                            Spacer()
-                            Image(systemName: "gift").foregroundColor(.white)
-                            Image(systemName: "sparkles")
-                                .padding(8)
-                                .background(Circle().stroke(Color.white.opacity(0.4)))
-                                .foregroundColor(.white)
-                        }
-                        .padding(.horizontal)
+                    // --- 第一部分：顶部导航与场景 ---
+                    headerAndScenesSection
 
-                        // 动态邀请 Banner
-                        ZStack(alignment: .bottomLeading) {
-                            // 模拟背景图
-                            Rectangle()
-                                .fill(LinearGradient(colors: [Color(hex: "1A1A1A"), .black], startPoint: .top, endPoint: .bottom))
-                                .overlay(
-                                    Image("image_share") // 确保 Assets 中有此图，否则显示渐变
-                                        .resizable()
-                                        .aspectRatio(contentMode: .fill)
-                                )
-                                .scaleEffect(bannerAnimate ? 1.1 : 1.0)
-                                .animation(.easeInOut(duration: 8.0).repeatForever(autoreverses: true), value: bannerAnimate)
-                            
-                            Text("分享并邀请")
-                                .font(.system(size: 22, weight: .heavy))
-                                .foregroundColor(.white)
-                                .padding(.leading, 24)
-                                .padding(.bottom, 30)
-                        }
-                        .frame(height: 200)
-                        .frame(maxWidth: .infinity)
-                        .clipShape(RoundedRectangle(cornerRadius: 28))
-                        .glassStyle(opacity: 0.74)
-                        .padding(.horizontal)
-                        .onAppear { bannerAnimate = true }
-                    }
-
-                    // --- 第二部分：场景 ---
-                    VStack(alignment: .leading, spacing: 18) {
-                        HStack {
-                            Text("场景").font(.system(size: 24, weight: .bold)).foregroundColor(.white)
-                            Spacer()
-                            Text("显示全部").foregroundColor(.gray)
-                        }.padding(.horizontal)
-                        
-                        HStack(alignment: .top, spacing: 14) {
-                            VStack(spacing: 14) {
-                                SceneCard(title: "专注", imageName: "focus", height: 210, showMeteor: true)
-                                SceneCard(title: "创造", imageName: "create", height: 120, titleAlignment: .bottomLeading)
-                            }
-                            VStack(spacing: 14) {
-                                SceneCard(title: "休息", imageName: "rest", height: 100, titleAlignment: .topTrailing)
-                                SceneCard(title: "冥想", imageName: "meditate", height: 190, titleAlignment: .bottomTrailing, showMeteor: true, meteorDelay: 1.0)
-                            }
-                        }.padding(.horizontal)
-                    }
-
-                    // --- 第三部分：声音区块 (带进入动画) ---
+                    // --- 第二部分：“声音”区块 (带滚动渐显) ---
                     VStack(alignment: .leading, spacing: 0) {
                         Text("声音")
                             .font(.system(size: 28, weight: .bold))
@@ -254,23 +183,32 @@ struct ContentView: View {
                         
                         GeometryReader { proxy in
                             let minY = proxy.frame(in: .global).minY
+                            let screenHeight = UIScreen.main.bounds.height
                             
                             ZStack(alignment: .topTrailing) {
-                                // 装饰背景线
-                                Circle()
-                                    .stroke(Color.white.opacity(0.05), lineWidth: 1)
-                                    .frame(width: 400)
-                                    .offset(x: 100, y: 100)
+                                // 底层背景
+                                Image("face_lines")
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .frame(width: 320)
+                                    .opacity(0.6)
+                                    .offset(x: 60, y: 100)
                                 
-                                // 主体内容
+                                // 中层流星 (防压扁)
+                                Image("image_shooting_star")
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 140)
+                                    .offset(x: -15, y: -20)
+                                
+                                // 文字与斜向排列按钮
                                 VStack(alignment: .leading, spacing: 20) {
                                     VStack(alignment: .leading, spacing: 8) {
                                         Text("晚上好").font(.system(size: 18)).foregroundColor(.white.opacity(0.8))
                                         Text("用户昵称")
                                             .font(.system(size: 18, weight: .bold))
                                             .foregroundColor(.white)
-                                            .padding(.vertical, 8)
-                                            .padding(.horizontal, 20)
+                                            .padding(.vertical, 8).padding(.horizontal, 20)
                                             .glassStyle(opacity: 0.3, cornerRadius: 12)
                                         Text("现在是\(currentDateText)夜间，一起开启好梦").font(.system(size: 14)).foregroundColor(.gray)
                                     }
@@ -286,28 +224,66 @@ struct ContentView: View {
                                 .frame(maxWidth: .infinity, alignment: .leading)
                             }
                             .opacity(soundSectionOpacity)
-                            .onAppear {
-                                // 检查位置触发渐显
-                                if minY < 1000 {
+                            // 滚动逻辑：当区块进入可视范围触发
+                            .onChange(of: minY) { newValue in
+                                let threshold = screenHeight * 0.85
+                                if newValue < threshold {
                                     withAnimation(.easeIn(duration: 0.8)) {
                                         soundSectionOpacity = 1.0
                                     }
                                 }
                             }
                         }
-                        .frame(height: 450) 
+                        .frame(height: 400) // 预留足够高度给 offset 后的按钮
                     }
                     .padding(.top, 20)
                 }
-                .padding(.bottom, 100)
+                .padding(.bottom, 120)
             }
         }
     }
-}
+    
+    // 顶部内容封装
+    private var headerAndScenesSection: some View {
+        VStack(spacing: 28) {
+            HStack {
+                Circle().stroke(Color.white.opacity(0.4), lineWidth: 1).frame(width: 34, height: 34).overlay(Text("logo").font(.system(size: 8)).foregroundColor(.white))
+                Text("Brand Name").font(.system(size: 20, weight: .bold)).foregroundColor(.white)
+                Spacer()
+                Image(systemName: "gift").foregroundColor(.white)
+                Image(systemName: "sparkles").padding(8).background(Circle().stroke(Color.white.opacity(0.4))).foregroundColor(.white)
+            }.padding(.horizontal)
 
-// MARK: - 预览
-struct ContentView_Previews: PreviewProvider {
-    static var previews: some View {
-        ContentView()
+            ZStack(alignment: .bottomLeading) {
+                Image("image_share")
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .scaleEffect(bannerAnimate ? 1.5 : 1.0)
+                    .rotationEffect(.degrees(bannerAnimate ? 15 : 0))
+                    .animation(Animation.easeInOut(duration: 8.0).repeatForever(autoreverses: true), value: bannerAnimate)
+                Text("分享并邀请").font(.system(size: 22, weight: .heavy)).foregroundColor(.white).padding(.leading, 24).padding(.bottom, 30)
+            }
+            .frame(height: 200).frame(maxWidth: .infinity).clipShape(RoundedRectangle(cornerRadius: 28)).glassStyle(opacity: 0.74).padding(.horizontal)
+            .onAppear { bannerAnimate = true }
+
+            VStack(alignment: .leading, spacing: 18) {
+                HStack {
+                    Text("场景").font(.system(size: 24, weight: .bold)).foregroundColor(.white)
+                    Spacer()
+                    Text("显示全部").foregroundColor(.gray)
+                }.padding(.horizontal)
+                
+                HStack(alignment: .top, spacing: 14) {
+                    VStack(spacing: 14) {
+                        SceneCard(title: "专注", imageName: "focus", height: 210, showMeteor: true)
+                        SceneCard(title: "创造", imageName: "create", height: 120, titleAlignment: .bottomLeading)
+                    }
+                    VStack(spacing: 14) {
+                        SceneCard(title: "休息", imageName: "rest", height: 100, titleAlignment: .topTrailing)
+                        SceneCard(title: "冥想", imageName: "meditate", height: 190, titleAlignment: .bottomTrailing, showMeteor: true, meteorDelay: 1.0)
+                    }
+                }.padding(.horizontal)
+            }
+        }
     }
 }
