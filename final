@@ -11,6 +11,9 @@ struct YourProjectNameApp: App {
 }
 
 
+
+
+
 import SwiftUI
 
 struct MainView: View {
@@ -19,12 +22,10 @@ struct MainView: View {
     
     var body: some View {
         ZStack {
-            // 背景层：第一个界面 (ContentView)
+            // 背景层：第一个界面
             ContentView()
                 .scaleEffect(isPlayingPagePresented ? 0.95 : 1.0 - (dragOffset / 2000))
                 .blur(radius: isPlayingPagePresented ? 10 : (dragOffset / 100))
-                .animation(.spring(), value: isPlayingPagePresented)
-                .animation(.interactiveSpring(), value: dragOffset)
             
             // 覆盖层：第二个界面 (PlayPage)
             if isPlayingPagePresented || dragOffset > 0 {
@@ -32,39 +33,38 @@ struct MainView: View {
                     .offset(y: isPlayingPagePresented ? 0 : -UIScreen.main.bounds.height)
                     .offset(y: dragOffset)
                     .transition(.move(edge: .top))
-                    .animation(.spring(response: 0.5, dampingFraction: 0.8), value: isPlayingPagePresented)
-                    .animation(.interactiveSpring(), value: dragOffset)
             }
         }
         .background(Color.black.ignoresSafeArea())
+        .animation(.spring(response: 0.5, dampingFraction: 0.8), value: isPlayingPagePresented)
+        .animation(.interactiveSpring(), value: dragOffset)
         .gesture(
             DragGesture(minimumDistance: 10)
                 .onChanged { value in
-                    // 仅当向下划动且页面未弹出时开始拽拉
                     if !isPlayingPagePresented && value.translation.height > 0 {
                         dragOffset = value.translation.height
                     }
                 }
                 .onEnded { value in
                     if value.translation.height > 150 {
-                        withAnimation(.spring()) {
-                            isPlayingPagePresented = true
-                        }
+                        isPlayingPagePresented = true
                     }
-                    withAnimation(.spring()) {
-                        dragOffset = 0
-                    }
+                    dragOffset = 0
                 }
         )
     }
 }
 
 
+
+
+
+
+
 import SwiftUI
 
 struct ContentView: View {
     @State private var bannerAnimate = false
-    @State private var soundSectionOpacity: Double = 0
     
     var currentDateText: String {
         let formatter = DateFormatter()
@@ -75,110 +75,57 @@ struct ContentView: View {
     var body: some View {
         ScrollView(.vertical, showsIndicators: false) {
             VStack(spacing: 40) {
-                // --- 顶部导航与 Banner ---
-                VStack(spacing: 28) {
-                    HStack {
-                        Circle().stroke(Color.white.opacity(0.4), lineWidth: 1).frame(width: 34, height: 34)
-                            .overlay(Text("logo").font(.system(size: 8)).foregroundColor(.white))
-                        Text("Brand Name").font(.system(size: 20, weight: .bold)).foregroundColor(.white)
-                        Spacer()
-                        Image(systemName: "gift").foregroundColor(.white)
-                        Image(systemName: "sparkles").padding(8).background(Circle().stroke(Color.white.opacity(0.4))).foregroundColor(.white)
-                    }.padding(.horizontal)
+                // 顶部导航
+                HStack {
+                    Circle().stroke(Color.white.opacity(0.4), lineWidth: 1).frame(width: 34, height: 34)
+                        .overlay(Text("logo").font(.system(size: 8)).foregroundColor(.white))
+                    Text("Brand Name").font(.system(size: 20, weight: .bold)).foregroundColor(.white)
+                    Spacer()
+                    Image(systemName: "sparkles").padding(8).background(Circle().stroke(Color.white.opacity(0.4))).foregroundColor(.white)
+                }.padding(.horizontal)
 
-                    ZStack(alignment: .bottomLeading) {
-                        Image("image_share") // 请确保 Assets 中有此图片
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                            .scaleEffect(bannerAnimate ? 1.5 : 1.0)
-                            .rotationEffect(.degrees(bannerAnimate ? 15 : 0))
-                            .animation(Animation.easeInOut(duration: 8.0).repeatForever(autoreverses: true), value: bannerAnimate)
-                        Text("分享并邀请").font(.system(size: 22, weight: .heavy)).foregroundColor(.white).padding(.leading, 24).padding(.bottom, 30)
-                    }
-                    .frame(height: 200).frame(maxWidth: .infinity).clipShape(RoundedRectangle(cornerRadius: 28))
-                    .glassStyle(opacity: 0.74).padding(.horizontal)
-                    .onAppear { bannerAnimate = true }
+                // 核心 Banner
+                ZStack(alignment: .bottomLeading) {
+                    Image("image_share").resizable().aspectRatio(contentMode: .fill)
+                        .scaleEffect(bannerAnimate ? 1.2 : 1.0)
+                    Text("分享并邀请").font(.system(size: 22, weight: .heavy)).foregroundColor(.white).padding(24)
                 }
+                .frame(height: 200).frame(maxWidth: .infinity).clipShape(RoundedRectangle(cornerRadius: 28))
+                .glassStyle(opacity: 0.74, cornerRadius: 28) // 显式传递参数修复报错
+                .padding(.horizontal)
+                .onAppear { withAnimation(.easeInOut(duration: 8).repeatForever()) { bannerAnimate = true } }
 
-                // --- 场景区块 ---
+                // 场景区块
                 VStack(alignment: .leading, spacing: 18) {
-                    HStack {
-                        Text("场景").font(.system(size: 24, weight: .bold)).foregroundColor(.white)
-                        Spacer()
-                        Text("显示全部").foregroundColor(.gray)
-                    }.padding(.horizontal)
-                    
-                    HStack(alignment: .top, spacing: 14) {
-                        VStack(spacing: 14) {
-                            SceneCard(title: "专注", imageName: "focus", height: 210, showMeteor: true)
-                            SceneCard(title: "创造", imageName: "create", height: 120, titleAlignment: .bottomLeading)
-                        }
-                        VStack(spacing: 14) {
-                            SceneCard(title: "休息", imageName: "rest", height: 100, titleAlignment: .topTrailing)
-                            SceneCard(title: "冥想", imageName: "meditate", height: 190, titleAlignment: .bottomTrailing, showMeteor: true, meteorDelay: 1.0)
-                        }
+                    Text("场景").font(.system(size: 24, weight: .bold)).foregroundColor(.white).padding(.horizontal)
+                    HStack(spacing: 14) {
+                        SceneCard(title: "专注", imageName: "focus", height: 210)
+                        SceneCard(title: "冥想", imageName: "meditate", height: 210)
                     }.padding(.horizontal)
                 }
 
-                // --- 声音区块 ---
-                VStack(alignment: .leading, spacing: 0) {
-                    Text("声音").font(.system(size: 28, weight: .bold)).foregroundColor(.white).padding(.horizontal)
-                    
-                    GeometryReader { proxy in
-                        let minY = proxy.frame(in: .global).minY
-                        ZStack(alignment: .topTrailing) {
-                            Image("face_lines").resizable().aspectRatio(contentMode: .fit).frame(width: 320).opacity(0.6).offset(x: 60, y: 100)
-                            
-                            VStack(alignment: .leading, spacing: 20) {
-                                VStack(alignment: .leading, spacing: 8) {
-                                    Text("晚上好").font(.system(size: 18)).foregroundColor(.white.opacity(0.8))
-                                    Text("用户昵称").font(.system(size: 18, weight: .bold)).foregroundColor(.white)
-                                        .padding(.vertical, 8).padding(.horizontal, 20).glassStyle(opacity: 0.3, cornerRadius: 12)
-                                    Text("现在是\(currentDateText)夜间，一起开启好梦").font(.system(size: 14)).foregroundColor(.gray)
-                                }
-                                HStack(spacing: 12) {
-                                    SoundBubble(title: "白噪音").offset(y: 20)
-                                    SoundBubble(title: "自然之声").offset(y: 120).offset(x: 40)
-                                    SoundBubble(title: "节奏").offset(y: 220).offset(x: -200)
-                                }
-                            }
-                            .padding(.horizontal)
-                        }
-                        .opacity(soundSectionOpacity)
-                        .onChange(of: minY) { newValue in
-                            if newValue < UIScreen.main.bounds.height * 0.85 {
-                                withAnimation(.easeIn(duration: 0.8)) { soundSectionOpacity = 1.0 }
-                            }
-                        }
-                    }.frame(height: 400)
-                }
+                // 底部声音预览
+                VStack(alignment: .leading, spacing: 15) {
+                    Text("晚上好，用户").font(.system(size: 18, weight: .bold)).foregroundColor(.white)
+                    Text("现在是\(currentDateText)").font(.system(size: 14)).foregroundColor(.gray)
+                }.frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal)
             }
-            .padding(.bottom, 120)
+            .padding(.top, 20)
         }
         .background(Color.black.ignoresSafeArea())
     }
 }
 
-// 内部辅助组件
+// 辅助组件
 struct SceneCard: View {
     var title: String; var imageName: String; var height: CGFloat
-    var titleAlignment: Alignment = .topLeading; var showMeteor: Bool = false; var meteorDelay: Double = 0
     var body: some View {
-        ZStack(alignment: titleAlignment) {
+        ZStack(alignment: .topLeading) {
             Image(imageName).resizable().scaledToFit().padding(12)
             Text(title).font(.system(size: 18, weight: .bold)).foregroundColor(.white).padding(16)
         }
         .frame(maxWidth: .infinity).frame(height: height)
-        .glassStyle(opacity: 1.0)
-    }
-}
-
-struct SoundBubble: View {
-    var title: String
-    var body: some View {
-        Text(title).font(.system(size: 15, weight: .medium)).foregroundColor(.white)
-            .frame(width: 100, height: 75)
-            .glassStyle(opacity: 0.74, cornerRadius: 40, showBorder: true)
+        .glassStyle(opacity: 1.0, cornerRadius: 28)
     }
 }
 
@@ -189,103 +136,73 @@ import SwiftUI
 struct PlayPage: View {
     @Binding var isPresented: Bool
     @State private var selectedTab: Int = 0
-    @State private var dragOffset: CGFloat = 0
+    @State private var innerDragOffset: CGFloat = 0
     
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
             
             VStack(spacing: 0) {
-                // 顶部手柄
-                Capsule().fill(Color.white.opacity(0.3)).frame(width: 40, height: 5).padding(.top, 10)
+                Capsule().fill(Color.white.opacity(0.3)).frame(width: 40, height: 5).padding(.top, 12)
                 
-                // 标题区
                 VStack(spacing: 8) {
-                    Text(selectedTab == 0 ? "白噪音" : (selectedTab == 1 ? "自然之声" : "节奏"))
-                        .font(.system(size: 28, weight: .bold)).foregroundColor(.white)
+                    Text(selectedTab == 0 ? "白噪音" : "自然之声").font(.system(size: 28, weight: .bold)).foregroundColor(.white)
                     Text("夜间好梦").font(.system(size: 14)).foregroundColor(.gray)
-                }
-                .padding(.top, 30)
-                .overlay(alignment: .trailing) {
-                    Image(systemName: "info.circle.fill").font(.system(size: 22))
-                        .foregroundColor(.white.opacity(0.2)).padding(.trailing, 25)
-                }
+                }.padding(.top, 30)
                 
-                Spacer() // 预留给中间的动效
+                Spacer()
                 
-                // --- 交互控制区 (参考图2/图3参数) ---
-                VStack(spacing: 35) {
+                // 交互按钮
+                VStack(spacing: 30) {
                     HStack(spacing: 15) {
                         TabButton(title: "白噪音", isSelected: selectedTab == 0) { selectedTab = 0 }
                         TabButton(title: "自然之声", isSelected: selectedTab == 1) { selectedTab = 1 }
-                        TabButton(title: "节奏", isSelected: selectedTab == 2) { selectedTab = 2 }
-                    }
-                    .padding(.horizontal, 20)
+                    }.padding(.horizontal, 20)
                     
-                    // 播放按钮组
                     HStack(spacing: 40) {
-                        PlayControlIcon(icon: "pause.fill", isMain: true)
-                        PlayControlIcon(icon: "arrow.clockwise")
-                        PlayControlIcon(icon: "timer")
-                        PlayControlIcon(icon: "airplayaudio")
+                        Image(systemName: "pause.fill").font(.title).foregroundColor(.white).frame(width: 60, height: 60).background(Circle().fill(Color.white.opacity(0.1)))
+                        Image(systemName: "timer").font(.title3).foregroundColor(.white)
                     }
                     
-                    // 底部“发现”按钮
-                    Button(action: {}) {
-                        Text("发现").font(.system(size: 16, weight: .medium)).foregroundColor(.white)
-                            .frame(maxWidth: .infinity).frame(height: 70)
-                            .glassStyle(opacity: 0.4, cornerRadius: 35)
-                    }
-                    .padding(.horizontal, 20).padding(.bottom, 40)
+                    Button("发现") {}.font(.headline).foregroundColor(.white).frame(maxWidth: .infinity).frame(height: 70).glassStyle(opacity: 0.4, cornerRadius: 35).padding(.horizontal, 20).padding(.bottom, 40)
                 }
             }
-            .offset(y: dragOffset)
+            .offset(y: innerDragOffset)
         }
-        .clipShape(RoundedRectangle(cornerRadius: dragOffset > 0 ? 40 : 0))
+        .clipShape(RoundedRectangle(cornerRadius: innerDragOffset > 0 ? 40 : 0))
         .gesture(
-            DragGesture().onChanged { v in if v.translation.height > 0 { dragOffset = v.translation.height } }
+            DragGesture().onChanged { v in if v.translation.height > 0 { innerDragOffset = v.translation.height } }
                 .onEnded { v in
-                    if v.translation.height > 150 { withAnimation { isPresented = false; dragOffset = 0 } }
-                    else { withAnimation { dragOffset = 0 } }
+                    if v.translation.height > 150 { isPresented = false }
+                    innerDragOffset = 0
                 }
         )
     }
 }
 
-// 辅助组件
 struct TabButton: View {
     var title: String; var isSelected: Bool; var action: () -> Void
     var body: some View {
         Button(action: action) {
-            Text(title).font(.system(size: 15, weight: isSelected ? .bold : .medium))
-                .foregroundColor(isSelected ? .white : .white.opacity(0.5))
-                .frame(maxWidth: .infinity).frame(height: 65)
+            Text(title).foregroundColor(.white).frame(maxWidth: .infinity).frame(height: 60)
                 .glassStyle(opacity: isSelected ? 0.74 : 0.15, cornerRadius: 20, showBorder: isSelected)
         }
     }
 }
 
-struct PlayControlIcon: View {
-    var icon: String; var isMain: Bool = false
-    var body: some View {
-        Image(systemName: icon).font(.system(size: isMain ? 24 : 18)).foregroundColor(.white)
-            .frame(width: 55, height: 55).background(Circle().fill(Color.white.opacity(0.12)))
-    }
-}
-
-// --- 通用样式扩展 (由图2、图3参数转换) ---
+// MARK: - 统一玻璃样式与修复报错
 extension View {
     func glassStyle(opacity: Double, cornerRadius: CGFloat, showBorder: Bool = false) -> some View {
         self.background(
             ZStack {
                 Color(red: 15/255, green: 15/255, blue: 15/255).opacity(opacity) // #0F0F0F
-                LinearGradient(colors: [.white.opacity(0.12), .clear], startPoint: .topLeading, endPoint: .bottomTrailing)
+                LinearGradient(colors: [.white.opacity(0.1), .clear], startPoint: .topLeading, endPoint: .bottomTrailing)
             }
         )
         .cornerRadius(cornerRadius)
         .overlay(
             RoundedRectangle(cornerRadius: cornerRadius)
-                .stroke(Color.white.opacity(showBorder ? 0.35 : 0.1), lineWidth: showBorder ? 1.5 : 0.5)
+                .stroke(Color.white.opacity(showBorder ? 0.3 : 0.1), lineWidth: 1)
         )
     }
 }
