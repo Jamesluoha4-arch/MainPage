@@ -1,6 +1,6 @@
 import SwiftUI
 
-// MARK: - 1. 颜色工具扩展
+// MARK: - 1. 颜色与工具扩展 (保持原样)
 extension Color {
     init(hex: String) {
         let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
@@ -17,83 +17,79 @@ extension Color {
     }
 }
 
-// MARK: - 2. 动态流光组件 (Shimmer)
-struct ShimmerEffect: View {
-    @State private var phase: CGFloat = -1.0
-    
+// MARK: - 2. 动画组件 (保持原样)
+struct StarMeteorView: View {
+    @State private var animate = false
+    var delay: Double = 0
     var body: some View {
-        GeometryReader { geometry in
-            LinearGradient(
-                gradient: Gradient(stops: [
-                    .init(color: .clear, location: 0),
-                    .init(color: .white.opacity(0.4), location: 0.5),
-                    .init(color: .clear, location: 1)
-                ]),
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .scaleEffect(2) 
-            .rotationEffect(.degrees(30))
-            .offset(x: phase * geometry.size.width)
-            .onAppear {
-                // 流光循环动画
-                withAnimation(Animation.linear(duration: 3).repeatForever(autoreverses: false)) {
-                    phase = 1.5
+        GeometryReader { proxy in
+            Circle()
+                .fill(Color.white.opacity(0.6))
+                .frame(width: 4, height: 4)
+                .blur(radius: 2)
+                .overlay(
+                    Capsule()
+                        .fill(LinearGradient(colors: [.white.opacity(0.4), .clear], startPoint: .leading, endPoint: .trailing))
+                        .frame(width: 40, height: 2)
+                        .rotationEffect(.degrees(45), anchor: .leading),
+                    alignment: .leading
+                )
+                .offset(x: animate ? proxy.size.width + 50 : -50,
+                        y: animate ? proxy.size.height + 50 : -50)
+                .onAppear {
+                    withAnimation(Animation.linear(duration: 2.0).repeatForever(autoreverses: false).delay(delay)) {
+                        animate = true
+                    }
                 }
-            }
         }
+        .clipped()
     }
 }
 
-// MARK: - 3. 增强玻璃质感修饰符
+// MARK: - 3. 玻璃质感修饰符
 struct GlassModifier: ViewModifier {
     var cornerRadius: CGFloat
+    var backgroundColor: Color = Color(hex: "0F0F0F")
     var opacity: Double
-    var isButton: Bool
+    var showBorder: Bool = true // 是否显示描边
     
     func body(content: Content) -> some View {
         content
             .background(
                 ZStack {
-                    Color(hex: "0F0F0F").opacity(opacity)
-                    
-                    // 仅按钮显示内部流光
-                    if isButton {
-                        ShimmerEffect()
-                            .mask(RoundedRectangle(cornerRadius: cornerRadius))
-                    }
-                    
-                    // 玻璃反光渐变
+                    backgroundColor.opacity(opacity)
                     LinearGradient(stops: [
-                        .init(color: .white.opacity(0.15), location: 0),
-                        .init(color: .clear, location: 0.6)
+                        .init(color: .white.opacity(0.12), location: 0),
+                        .init(color: .clear, location: 0.5)
                     ], startPoint: .topLeading, endPoint: .bottomTrailing)
                 }
             )
             .cornerRadius(cornerRadius)
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius)
-                    // 强化版白色描边：按钮 1.5pt，普通卡片 0.5pt
-                    .stroke(Color.white.opacity(isButton ? 0.4 : 0.15), lineWidth: isButton ? 1.5 : 0.5)
+                    .stroke(Color.white.opacity(showBorder ? 0.3 : 0.15), lineWidth: showBorder ? 1.5 : 0.5)
             )
     }
 }
 
 extension View {
-    func glassStyle(opacity: Double = 0.74, cornerRadius: CGFloat = 28, isButton: Bool = false) -> some View {
-        self.modifier(GlassModifier(cornerRadius: cornerRadius, opacity: opacity, isButton: isButton))
+    func glassStyle(opacity: Double = 0.74, cornerRadius: CGFloat = 28, showBorder: Bool = false) -> some View {
+        self.modifier(GlassModifier(cornerRadius: cornerRadius, opacity: opacity, showBorder: showBorder))
     }
 }
 
-// MARK: - 4. 子组件：场景卡片 & 声音气泡
+// MARK: - 4. 核心子组件
 struct SceneCard: View {
     var title: String
     var imageName: String
     var height: CGFloat
     var titleAlignment: Alignment = .topLeading
+    var showMeteor: Bool = false
+    var meteorDelay: Double = 0
     
     var body: some View {
         ZStack(alignment: titleAlignment) {
+            if showMeteor { StarMeteorView(delay: meteorDelay) }
             Image(imageName).resizable().scaledToFit().padding(12)
             Text(title).font(.system(size: 18, weight: .bold)).foregroundColor(.white).padding(16)
         }
@@ -108,16 +104,23 @@ struct SoundBubble: View {
         Text(title)
             .font(.system(size: 15, weight: .medium))
             .foregroundColor(.white)
-            .frame(width: 95, height: 70)
-            .glassStyle(opacity: 0.8, cornerRadius: 35, isButton: true)
-            .shadow(color: .black.opacity(0.5), radius: 10, x: 0, y: 10)
+            .frame(width: 100, height: 75)
+            // 强化白色描边，使用 showBorder: true
+            .glassStyle(opacity: 0.74, cornerRadius: 40, showBorder: true)
+            .shadow(color: .black.opacity(0.4), radius: 10, x: 0, y: 10)
     }
 }
 
-// MARK: - 5. 主页面
+// MARK: - 5. 主界面
 struct ContentView: View {
     @State private var bannerAnimate = false
     
+    var currentDateText: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy年M月d日"
+        return formatter.string(from: Date())
+    }
+
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
@@ -125,10 +128,10 @@ struct ContentView: View {
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(spacing: 40) {
                     
-                    // --- 第一部分：顶部导航与场景 ---
+                    // --- 第一部分：顶部导航与场景 (原有逻辑) ---
                     VStack(spacing: 28) {
                         HStack {
-                            Circle().stroke(Color.white.opacity(0.4)).frame(width: 34).overlay(Text("logo").font(.system(size: 8)).foregroundColor(.white))
+                            Circle().stroke(Color.white.opacity(0.4), lineWidth: 1).frame(width: 34, height: 34).overlay(Text("logo").font(.system(size: 8)).foregroundColor(.white))
                             Text("Brand Name").font(.system(size: 20, weight: .bold)).foregroundColor(.white)
                             Spacer()
                             Image(systemName: "gift").foregroundColor(.white)
@@ -136,11 +139,13 @@ struct ContentView: View {
                         }.padding(.horizontal)
 
                         ZStack(alignment: .bottomLeading) {
-                            Image("image_share").resizable().aspectRatio(contentMode: .fill)
+                            Image("image_share")
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
                                 .scaleEffect(bannerAnimate ? 1.5 : 1.0)
                                 .rotationEffect(.degrees(bannerAnimate ? 15 : 0))
                                 .animation(Animation.easeInOut(duration: 8.0).repeatForever(autoreverses: true), value: bannerAnimate)
-                            Text("分享并邀请").font(.system(size: 22, weight: .heavy)).foregroundColor(.white).padding(24)
+                            Text("分享并邀请").font(.system(size: 22, weight: .heavy)).foregroundColor(.white).padding(.leading, 24).padding(.bottom, 30)
                         }
                         .frame(height: 200).frame(maxWidth: .infinity).clipShape(RoundedRectangle(cornerRadius: 28)).glassStyle(opacity: 0.74).padding(.horizontal)
                         .onAppear { bannerAnimate = true }
@@ -154,77 +159,87 @@ struct ContentView: View {
                             
                             HStack(alignment: .top, spacing: 14) {
                                 VStack(spacing: 14) {
-                                    SceneCard(title: "专注", imageName: "focus", height: 210)
-                                    SceneCard(title: "创造", imageName: "create", height: 120)
+                                    SceneCard(title: "专注", imageName: "focus", height: 210, showMeteor: true)
+                                    SceneCard(title: "创造", imageName: "create", height: 120, titleAlignment: .bottomLeading)
                                 }
                                 VStack(spacing: 14) {
-                                    SceneCard(title: "休息", imageName: "rest", height: 100)
-                                    SceneCard(title: "冥想", imageName: "meditate", height: 190)
+                                    SceneCard(title: "休息", imageName: "rest", height: 100, titleAlignment: .topTrailing)
+                                    SceneCard(title: "冥想", imageName: "meditate", height: 190, titleAlignment: .bottomTrailing, showMeteor: true, meteorDelay: 1.0)
                                 }
                             }.padding(.horizontal)
                         }
                     }
                     
-                    // --- 第二部分：“声音”区块 (斜向排列 + 流光) ---
+                    // --- 第二部分：“声音”区块 (根据反馈修改) ---
                     VStack(alignment: .leading, spacing: 0) {
                         Text("声音")
                             .font(.system(size: 28, weight: .bold))
                             .foregroundColor(.white)
                             .padding(.horizontal)
                         
-                        // 标题下方的留白
+                        // 1. 增加标题与下方内容的留白
                         Spacer().frame(height: 35)
                         
                         ZStack(alignment: .topTrailing) {
-                            // 1. 底层：人脸线条背景 (位置偏移调整)
+                            // 2. 底层：人脸线条背景
                             Image("face_lines")
                                 .resizable()
-                                .scaledToFit()
+                                .aspectRatio(contentMode: .fit)
                                 .frame(width: 320)
-                                .opacity(0.5)
-                                .offset(x: 60, y: 120)
+                                .opacity(0.6)
+                                .offset(x: 60, y: 100)
                             
-                            // 2. 中层：流星图片 (使用 scaledToFit 解决压扁问题)
+                            // 3. 中层：流星图片 (使用 scaledToFit 解决压扁问题)
                             Image("image_shooting_star")
                                 .resizable()
-                                .scaledToFit()
-                                .frame(width: 135)
-                                .offset(x: -20, y: -20)
+                                .scaledToFit() // 核心修改：保持原图比例
+                                .frame(width: 140) // 仅限制宽度，高度自动缩放
+                                .offset(x: -15, y: -20)
                             
-                            // 3. 上层：文字与斜向排布按钮
-                            VStack(alignment: .leading, spacing: 25) {
-                                // 问候语组
-                                VStack(alignment: .leading, spacing: 12) {
-                                    Text("晚上好").font(.system(size: 18)).foregroundColor(.white.opacity(0.8))
+                            // 4. 上层：文字与声音按钮
+                            VStack(alignment: .leading, spacing: 20) {
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text("晚上好")
+                                        .font(.system(size: 18))
+                                        .foregroundColor(.white.opacity(0.8))
+                                    
                                     Text("用户昵称")
                                         .font(.system(size: 18, weight: .bold))
                                         .foregroundColor(.white)
-                                        .padding(.vertical, 8).padding(.horizontal, 22)
-                                        .glassStyle(opacity: 0.3, cornerRadius: 15)
-                                    Text("现在是夜间，一起开启好梦").font(.system(size: 14)).foregroundColor(.gray)
+                                        .padding(.vertical, 8)
+                                        .padding(.horizontal, 20)
+                                        .glassStyle(opacity: 0.3, cornerRadius: 12)
+                                    
+                                    Text("现在是\(currentDateText)夜间，一起开启好梦")
+                                        .font(.system(size: 14))
+                                        .foregroundColor(.gray)
                                 }
                                 
-                                // 45度斜向排布逻辑
-                                ZStack(alignment: .topLeading) {
+                                // 5. 还原图二的按钮摆放方式
+                                HStack(spacing: 12) {
                                     SoundBubble(title: "白噪音")
-                                        .offset(x: 0, y: 0)
+                                        .offset(y: 20)
                                     
                                     SoundBubble(title: "自然之声")
-                                        .offset(x: 75, y: 75) // 递增偏移实现斜向
+                                        .offset(y: 120) // 纵向偏移，形成高低错落
+                                        .offset(x: 40)
                                     
                                     SoundBubble(title: "节奏")
-                                        .offset(x: 150, y: 150)
+                                        .offset(y: 220)
+                                        .offset(x: -200)
                                 }
-                                .padding(.top, 20)
-                                .padding(.bottom, 160) // 确保斜向排布不被裁切
+                                .padding(.top, 25)
                             }
                             .padding(.horizontal)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                         }
                     }
+                    .padding(.top, 20)
                 }
-                .padding(.top, 15)
-                .padding(.bottom, 60)
+                .padding(.bottom, 120)
             }
         }
     }
 }
+
+
