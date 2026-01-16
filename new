@@ -444,6 +444,7 @@ struct RippleCircle: View {
     @State private var scale: CGFloat = 0.2
     @State private var opacity: Double = 0.8 
     var delay: Double 
+    var isAnimating: Bool // 新增：控制动画是否执行
     
     var body: some View {
         Circle()
@@ -455,18 +456,28 @@ struct RippleCircle: View {
                 ),
                 lineWidth: 2
             )
-            .scaleEffect(scale)
-            .opacity(opacity)
+            .scaleEffect(isAnimating ? scale : 0.2) // 如果停止，恢复初始大小
+            .opacity(isAnimating ? opacity : 0.0)   // 如果停止，隐藏
             .onAppear {
-                withAnimation(
-                    Animation.easeOut(duration: 3.0)
-                        .delay(delay)
-                        .repeatForever(autoreverses: false)
-                ) {
-                    scale = 1.6
-                    opacity = 0.0
-                }
+                startAnimation()
             }
+            .onChange(of: isAnimating) { newValue in
+                if newValue { startAnimation() }
+            }
+    }
+    
+    private func startAnimation() {
+        // 只有在 isAnimating 为 true 时才触发循环动画
+        scale = 0.2
+        opacity = 0.8
+        withAnimation(
+            Animation.easeOut(duration: 3.0)
+                .delay(delay)
+                .repeatForever(autoreverses: false)
+        ) {
+            scale = 1.6
+            opacity = 0.0
+        }
     }
 }
 
@@ -475,21 +486,18 @@ struct PlayPage: View {
     @Binding var isPresented: Bool
     @State private var selectedTab: Int = 0
     @State private var innerDragOffset: CGFloat = 0
+    @State private var isPlaying: Bool = true // 新增：播放状态管理
     
     var body: some View {
         ZStack(alignment: .bottom) {
-            // 背景色使用全局 Color 扩展
             Color(hex: "050505").ignoresSafeArea()
             
-            // 中间内容区域
             VStack(spacing: 0) {
-                // 顶部指示条
                 Capsule()
                     .fill(Color.white.opacity(0.3))
                     .frame(width: 40, height: 5)
                     .padding(.top, 12)
                 
-                // 标题文本
                 VStack(spacing: 8) {
                     Text(selectedTab == 0 ? "白噪音" : (selectedTab == 1 ? "自然之声" : "节奏"))
                         .font(.system(size: 28, weight: .bold))
@@ -504,13 +512,17 @@ struct PlayPage: View {
                 
                 // 水波纹与月亮图标
                 ZStack {
-                    ForEach(0..<3) { i in
-                        RippleCircle(delay: Double(i) * 1.0)
+                    // 联动逻辑：只有 isPlaying 为 true 时展示动效
+                    if isPlaying {
+                        ForEach(0..<3) { i in
+                            RippleCircle(delay: Double(i) * 1.0, isAnimating: isPlaying)
+                        }
                     }
+                    
                     Image(systemName: "moon.stars.fill")
                         .font(.system(size: 80))
                         .foregroundColor(.white.opacity(0.9))
-                        .shadow(color: .white.opacity(0.3), radius: 20)
+                        .shadow(color: .white.opacity(isPlaying ? 0.3 : 0.0), radius: 20)
                 }
                 .frame(width: 300, height: 300)
                 .offset(y: -10)
@@ -518,9 +530,7 @@ struct PlayPage: View {
                 Spacer()
             }
             
-            // 底部控制面板
             VStack(spacing: 25) {
-                // 选项卡按钮组
                 HStack(spacing: 12) {
                     TabButton(title: "白噪音", isSelected: selectedTab == 0) { selectedTab = 0 }
                     TabButton(title: "自然音", isSelected: selectedTab == 1) { selectedTab = 1 }
@@ -530,17 +540,22 @@ struct PlayPage: View {
                 
                 // 播放控制按钮组
                 HStack(spacing: 22) {
-                    ControlIconGlass(icon: "pause.fill", isMain: true)
+                    // 修改：点击主按钮切换播放状态
+                    Button(action: {
+                        withAnimation(.spring()) {
+                            isPlaying.toggle()
+                        }
+                    }) {
+                        ControlIconGlass(icon: isPlaying ? "pause.fill" : "play.fill", isMain: true)
+                    }
+                    
                     ControlIconGlass(icon: "arrow.clockwise")
                     ControlIconGlass(icon: "timer")
                     ControlIconGlass(icon: "airplayaudio")
                 }
                 .padding(.vertical, 10)
                 
-                // 底部“发现”按钮
-                Button(action: {
-                    // 这里可以添加点击跳转逻辑
-                }) {
+                Button(action: { }) {
                     Text("发现")
                         .font(.system(size: 18, weight: .semibold))
                         .foregroundColor(.white)
@@ -552,14 +567,13 @@ struct PlayPage: View {
                                 LinearGradient(colors: [.white.opacity(0.15), .clear], startPoint: .topLeading, endPoint: .bottomTrailing)
                             }
                         )
-                        // 使用全局的 RoundedCorner
                         .clipShape(RoundedCorner(radius: 40, corners: [.topLeft, .topRight]))
                         .overlay(
                             RoundedCorner(radius: 40, corners: [.topLeft, .topRight])
                                 .stroke(Color.white.opacity(0.15), lineWidth: 1)
                         )
                 }
-                .padding(.bottom, -15) // 稍微探出安全区外，增加沉浸感
+                .padding(.bottom, -15)
             }
             .frame(maxWidth: .infinity)
             .background(
@@ -570,7 +584,6 @@ struct PlayPage: View {
             )
             .offset(y: innerDragOffset)
         }
-        // 全屏拖拽返回手势
         .gesture(
             DragGesture().onChanged { v in 
                 if v.translation.height > 0 { innerDragOffset = v.translation.height } 
@@ -584,7 +597,7 @@ struct PlayPage: View {
         )
     }
 
-    // MARK: - 3. 内部嵌套组件
+    // TabButton 和 ControlIconGlass 保持不变...
     struct TabButton: View {
         var title: String
         var isSelected: Bool
@@ -628,13 +641,9 @@ struct PlayPage: View {
                 Image(systemName: icon)
                     .font(.system(size: isMain ? 22 : 16, weight: .bold))
                     .foregroundColor(.white)
+                    .contentTransition(.symbolEffect(.replace)) // 增加丝滑的图标切换动画
             }
             .frame(width: isMain ? 65 : 52, height: isMain ? 65 : 52)
         }
     }
-}
-
-// MARK: - 4. 预览
-#Preview {
-    PlayPage(isPresented: .constant(true))
 }
