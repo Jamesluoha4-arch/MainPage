@@ -287,3 +287,195 @@ struct ContentView: View {
         }
     }
 }
+
+
+
+import SwiftUI
+
+struct PlayPageView: View {
+    // 用于控制选中的标签：0-白噪音, 1-自然之声, 2-节奏
+    @State private var selectedTab: Int = 0
+    
+    var body: some View {
+        ZStack {
+            // --- 1. 背景层 ---
+            // 使用 Figma 中的 #0F0F0F，并设置基础背景
+            Color.black.ignoresSafeArea()
+            
+            // 装饰性元素：可以在中间放一些模糊的氛围光（可选）
+            Circle()
+                .fill(Color.white.opacity(0.05))
+                .frame(width: 300, height: 300)
+                .blur(radius: 80)
+                .offset(y: -100)
+
+            // --- 2. 内容层 ---
+            VStack(spacing: 0) {
+                // 顶部指示条（提示这是一个可以下滑关闭的页面）
+                Capsule()
+                    .fill(Color.white.opacity(0.3))
+                    .frame(width: 40, height: 5)
+                    .padding(.top, 12)
+                
+                // 标题与信息图标
+                HStack {
+                    Spacer()
+                    VStack(spacing: 8) {
+                        Text(selectedTabTitle)
+                            .font(.system(size: 28, weight: .bold))
+                            .foregroundColor(.white)
+                        Text("夜间好梦")
+                            .font(.system(size: 14))
+                            .foregroundColor(.gray)
+                    }
+                    Spacer()
+                }
+                .padding(.top, 30)
+                .overlay(alignment: .trailing) {
+                    Image(systemName: "info.circle.fill")
+                        .font(.system(size: 22))
+                        .foregroundColor(.white.opacity(0.2))
+                        .padding(.trailing, 25)
+                }
+                
+                Spacer()
+                
+                // 这里预留给未来的动态频谱或核心动画
+                Circle()
+                    .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                    .frame(width: 240, height: 240)
+                    .overlay(
+                        Image(systemName: "moon.stars.fill")
+                            .font(.system(size: 60))
+                            .foregroundColor(.white.opacity(0.6))
+                    )
+
+                Spacer()
+
+                // --- 3. 底部交互控制区 ---
+                VStack(spacing: 35) {
+                    // 标签切换按钮组 (Figma 参数实现)
+                    HStack(spacing: 12) {
+                        PlayTabButton(title: "白噪音", isSelected: selectedTab == 0) { selectedTab = 0 }
+                        PlayTabButton(title: "自然之声", isSelected: selectedTab == 1) { selectedTab = 1 }
+                        PlayTabButton(title: "节奏", isSelected: selectedTab == 2) { selectedTab = 2 }
+                    }
+                    .padding(.horizontal, 20)
+                    
+                    // 播放控制按钮
+                    HStack(spacing: 40) {
+                        ControlCircleButton(icon: "pause.fill", isMain: true)
+                        ControlCircleButton(icon: "arrow.clockwise")
+                        ControlCircleButton(icon: "timer")
+                        ControlCircleButton(icon: "airplayaudio")
+                    }
+                    
+                    // 发现按钮
+                    Button(action: { /* 发现逻辑 */ }) {
+                        Text("发现")
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 70)
+                            .glassBackground(opacity: 0.4, cornerRadius: 35)
+                    }
+                    .padding(.horizontal, 25)
+                    .padding(.bottom, 40)
+                }
+            }
+        }
+    }
+    
+    // 动态标题计算
+    private var selectedTabTitle: String {
+        switch selectedTab {
+        case 0: return "白噪音"
+        case 1: return "自然之声"
+        default: return "节奏"
+        }
+    }
+}
+
+// MARK: - 子组件：标签按钮
+struct PlayTabButton: View {
+    var title: String
+    var isSelected: Bool
+    var action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 15, weight: isSelected ? .bold : .medium))
+                .foregroundColor(isSelected ? .white : .white.opacity(0.4))
+                .frame(maxWidth: .infinity)
+                .frame(height: 64)
+                .glassBackground(
+                    opacity: isSelected ? 0.74 : 0.15, // Figma: 选中的 74% 不透明度
+                    cornerRadius: 18, 
+                    showBorder: isSelected
+                )
+        }
+    }
+}
+
+// MARK: - 子组件：圆形控制按钮
+struct ControlCircleButton: View {
+    var icon: String
+    var isMain: Bool = false
+    
+    var body: some View {
+        Image(systemName: icon)
+            .font(.system(size: isMain ? 24 : 18))
+            .foregroundColor(.white)
+            .frame(width: 55, height: 55)
+            .background(Circle().fill(Color.white.opacity(0.12)))
+    }
+}
+
+// MARK: - 专用玻璃质感扩展
+struct PlayGlassModifier: ViewModifier {
+    var opacity: Double
+    var cornerRadius: CGFloat
+    var showBorder: Bool
+    
+    func body(content: Content) -> some View {
+        content
+            .background(
+                ZStack {
+                    // Figma 参数: #0F0F0F
+                    Color(red: 15/255, green: 15/255, blue: 15/255).opacity(opacity)
+                    
+                    // 顶部的亮部渐变
+                    LinearGradient(
+                        stops: [
+                            .init(color: .white.opacity(0.12), location: 0),
+                            .init(color: .clear, location: 0.5)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                }
+            )
+            .cornerRadius(cornerRadius)
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius)
+                    .stroke(
+                        Color.white.opacity(showBorder ? 0.35 : 0.1), 
+                        lineWidth: showBorder ? 1.2 : 0.5
+                    )
+            )
+    }
+}
+
+extension View {
+    func glassBackground(opacity: Double, cornerRadius: CGFloat, showBorder: Bool = false) -> some View {
+        self.modifier(PlayGlassModifier(opacity: opacity, cornerRadius: cornerRadius, showBorder: showBorder))
+    }
+}
+
+// MARK: - 预览
+struct PlayPageView_Previews: PreviewProvider {
+    static var previews: some View {
+        PlayPageView()
+    }
+}
