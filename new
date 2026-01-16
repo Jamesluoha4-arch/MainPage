@@ -25,7 +25,64 @@ struct RoundedCorner: Shape {
     }
 }
 
+import SwiftUI
 
+@main
+struct MainPageApp: App {
+    // 控制第二个界面（PlayPageView）是否显示的状态
+    @State private var isPlayPagePresented = false
+    // 记录下拉位移，用于动效反馈
+    @State private var dragOffset: CGFloat = 0
+    
+    var body: some Scene {
+        WindowGroup {
+            ZStack {
+                // --- 基础层：第一个界面 ---
+                ContentView()
+                    .offset(y: dragOffset > 0 ? dragOffset * 0.5 : 0) // 下拉时的跟随感
+                    .gesture(
+                        DragGesture()
+                            .onChanged { value in
+                                // 仅处理向下拉动
+                                if value.translation.height > 0 {
+                                    dragOffset = value.translation.height
+                                }
+                            }
+                            .onEnded { value in
+                                // 如果下拉超过阈值（如 120），触发跳转
+                                if value.translation.height > 120 {
+                                    isPlayPagePresented = true
+                                }
+                                // 无论是否跳转，松手后位移归零
+                                withAnimation(.spring()) {
+                                    dragOffset = 0
+                                }
+                            }
+                    )
+                
+                // --- 交互层：覆盖在 ContentView 上的 MiniBar 区域 ---
+                // 我们在这里放置一个透明的点击区域，覆盖在 ContentView 底部的 MiniBar 上
+                VStack {
+                    Spacer()
+                    Color.clear
+                        .frame(height: 100) // 与 MiniPlayerBar 高度匹配
+                        .contentShape(Rectangle()) 
+                        .onTapGesture {
+                            withAnimation(.spring()) {
+                                isPlayPagePresented = true
+                            }
+                        }
+                        .padding(.bottom, 20)
+                }
+            }
+            // 使用 fullScreenCover 弹出第二个界面
+            .fullScreenCover(isPresented: $isPlayPagePresented) {
+                // 传入状态绑定，以便在 PlayPageView 内部可以关闭自己
+                PlayPageView(isPresented: $isPlayPagePresented)
+            }
+        }
+    }
+}
 
 
 
