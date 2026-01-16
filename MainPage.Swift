@@ -1,6 +1,6 @@
 import SwiftUI
 
-// --- 1. 颜色扩展 (放在文件顶部或底部) ---
+// --- 颜色与样式保持不变 ---
 extension Color {
     init(hex: String) {
         let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
@@ -17,7 +17,6 @@ extension Color {
     }
 }
 
-// --- 2. 玻璃质感修饰符 ---
 struct GlassCardModifier: ViewModifier {
     var backgroundColor: Color
     var opacity: Double
@@ -29,18 +28,18 @@ struct GlassCardModifier: ViewModifier {
                     backgroundColor.opacity(opacity)
                     LinearGradient(
                         gradient: Gradient(stops: [
-                            .init(color: Color.white.opacity(0.15), location: 0),
-                            .init(color: Color.clear, location: 0.6)
+                            .init(color: Color.white.opacity(0.12), location: 0),
+                            .init(color: Color.clear, location: 0.5)
                         ]),
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
                 }
             )
-            .cornerRadius(24)
+            .cornerRadius(28) // 稍微圆润一点
             .overlay(
-                RoundedRectangle(cornerRadius: 24)
-                    .stroke(Color.white.opacity(0.1), lineWidth: 0.5)
+                RoundedRectangle(cornerRadius: 28)
+                    .stroke(Color.white.opacity(0.15), lineWidth: 0.5)
             )
     }
 }
@@ -51,26 +50,27 @@ extension View {
     }
 }
 
-// --- 3. 场景子组件 ---
+// --- 改进后的场景卡片 ---
 struct SceneCard: View {
     var title: String
     var imageName: String
     var height: CGFloat
     var titleAlignment: Alignment = .topLeading
-    var opacity: Double // 控制图三要求的透明度
+    var opacity: Double
     
     var body: some View {
         ZStack(alignment: titleAlignment) {
-            // 占位图：如果你还没放入图片，它会显示一个灰色方块，不会报错
+            // 内置图片：通过调小 padding 来让图片看起来更大
             Image(imageName)
                 .resizable()
                 .scaledToFit()
-                .padding(20)
+                .padding(12) // 从之前的 20 减小到 12，图片会显得更大
             
+            // 场景文字：放大到 18，增加粗细
             Text(title)
-                .font(.system(size: 14, weight: .medium))
+                .font(.system(size: 18, weight: .bold)) 
                 .foregroundColor(.white)
-                .padding(15)
+                .padding(16) // 控制文字离边框的距离
         }
         .frame(maxWidth: .infinity)
         .frame(height: height)
@@ -78,90 +78,83 @@ struct SceneCard: View {
     }
 }
 
-// --- 4. 主界面 ---
+// --- 主页面 ---
 struct ContentView: View {
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
             
             ScrollView(.vertical, showsIndicators: false) {
-                VStack(spacing: 24) {
+                VStack(spacing: 28) {
                     
-                    // Header
+                    // Header (保持原样)
                     HStack {
                         Circle()
-                            .stroke(Color.white.opacity(0.5), lineWidth: 0.8)
-                            .frame(width: 32, height: 32)
+                            .stroke(Color.white.opacity(0.4), lineWidth: 1)
+                            .frame(width: 34, height: 34)
                             .overlay(Text("logo").font(.system(size: 8)).foregroundColor(.white))
                         
                         Text("Brand Name")
-                            .font(.system(size: 18, weight: .semibold))
+                            .font(.system(size: 20, weight: .bold))
                             .foregroundColor(.white)
                         
                         Spacer()
                         
-                        Image(systemName: "gift")
-                            .foregroundColor(.white)
-                        
+                        Image(systemName: "gift").foregroundColor(.white)
                         Image(systemName: "sparkles")
-                            .font(.system(size: 14))
                             .padding(8)
-                            .background(Circle().stroke(Color.white.opacity(0.5)))
+                            .background(Circle().stroke(Color.white.opacity(0.4)))
                             .foregroundColor(.white)
                     }
                     .padding(.horizontal)
 
-                    // 分享邀请卡片 (参考图二：透明度 74%)
+                    // 分享邀请卡片：解决文字过低问题
                     ZStack(alignment: .bottomLeading) {
-                        Image("image_share") // 需在 Assets 中添加
+                        Image("image_share")
                             .resizable()
                             .aspectRatio(contentMode: .fill)
                         
                         Text("分享并邀请")
-                            .font(.system(size: 18, weight: .bold))
+                            .font(.system(size: 22, weight: .heavy))
                             .foregroundColor(.white)
-                            .padding(20)
+                            .padding(.leading, 24)
+                            .padding(.bottom, 24) // 增加底部边距，防止文字被挡住
                     }
-                    .frame(height: 180)
+                    .frame(height: 200)
                     .frame(maxWidth: .infinity)
                     .glassStyle(opacity: 0.74)
                     .padding(.horizontal)
 
                     // 场景区域
-                    VStack(alignment: .leading, spacing: 16) {
+                    VStack(alignment: .leading, spacing: 18) {
                         HStack {
                             Text("场景")
-                                .font(.system(size: 22, weight: .bold))
+                                .font(.system(size: 24, weight: .bold))
                                 .foregroundColor(.white)
                             Spacer()
-                            Text("显示全部")
-                                .font(.system(size: 12))
-                                .foregroundColor(.gray)
+                            Text("显示全部").foregroundColor(.gray)
                         }
                         .padding(.horizontal)
                         
-                        // 瀑布流/网格布局
-                        HStack(alignment: .top, spacing: 12) {
-                            VStack(spacing: 12) {
-                                SceneCard(title: "专注", imageName: "focus", height: 200, opacity: 1.0)
-                                SceneCard(title: "创造", imageName: "create", height: 110, opacity: 1.0)
+                        HStack(alignment: .top, spacing: 14) {
+                            // 左列
+                            VStack(spacing: 14) {
+                                SceneCard(title: "专注", imageName: "focus", height: 210, opacity: 1.0)
+                                // 创造：改为左下角对齐 (.bottomLeading)
+                                SceneCard(title: "创造", imageName: "create", height: 120, titleAlignment: .bottomLeading, opacity: 1.0)
                             }
-                            VStack(spacing: 12) {
-                                SceneCard(title: "休息", imageName: "rest", height: 130, titleAlignment: .topTrailing, opacity: 1.0)
-                                SceneCard(title: "冥想", imageName: "meditate", height: 180, titleAlignment: .bottomTrailing, opacity: 1.0)
+                            // 右列
+                            VStack(spacing: 14) {
+                                SceneCard(title: "休息", imageName: "rest", height: 140, titleAlignment: .topTrailing, opacity: 1.0)
+                                SceneCard(title: "冥想", imageName: "meditate", height: 190, titleAlignment: .bottomTrailing, opacity: 1.0)
                             }
                         }
                         .padding(.horizontal)
                     }
                 }
-                .padding(.top, 10)
-                .padding(.bottom, 30)
+                .padding(.top, 15)
+                .padding(.bottom, 40)
             }
         }
     }
-}
-
-// 预览
-#Preview {
-    ContentView()
 }
