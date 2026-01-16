@@ -155,3 +155,209 @@ struct WelcomeHeader: View {
 #Preview {
     ContentView()
 }
+
+
+
+
+
+import SwiftUI
+
+// MARK: - 1. 水波纹动效组件
+struct RippleCircle: View {
+    @State private var scale: CGFloat = 0.2
+    @State private var opacity: Double = 0.8 
+    var delay: Double 
+    
+    var body: some View {
+        Circle()
+            .stroke(
+                LinearGradient(
+                    gradient: Gradient(colors: [Color.white.opacity(0.8), Color.white.opacity(0.0)]),
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                ),
+                lineWidth: 2
+            )
+            .scaleEffect(scale)
+            .opacity(opacity)
+            .onAppear {
+                withAnimation(
+                    Animation.easeOut(duration: 3.0)
+                        .delay(delay)
+                        .repeatForever(autoreverses: false)
+                ) {
+                    scale = 1.6
+                    opacity = 0.0
+                }
+            }
+    }
+}
+
+// MARK: - 2. 播放详情页面
+struct PlayPage: View {
+    @Binding var isPresented: Bool
+    @State private var selectedTab: Int = 0
+    @State private var innerDragOffset: CGFloat = 0
+    
+    var body: some View {
+        ZStack(alignment: .bottom) {
+            // 背景色使用全局 Color 扩展
+            Color(hex: "050505").ignoresSafeArea()
+            
+            // 中间内容区域
+            VStack(spacing: 0) {
+                // 顶部指示条
+                Capsule()
+                    .fill(Color.white.opacity(0.3))
+                    .frame(width: 40, height: 5)
+                    .padding(.top, 12)
+                
+                // 标题文本
+                VStack(spacing: 8) {
+                    Text(selectedTab == 0 ? "白噪音" : (selectedTab == 1 ? "自然之声" : "节奏"))
+                        .font(.system(size: 28, weight: .bold))
+                        .foregroundColor(.white)
+                    Text("夜间好梦")
+                        .font(.system(size: 14))
+                        .foregroundColor(.gray)
+                }
+                .padding(.top, 30)
+                
+                Spacer().frame(height: 60)
+                
+                // 水波纹与月亮图标
+                ZStack {
+                    ForEach(0..<3) { i in
+                        RippleCircle(delay: Double(i) * 1.0)
+                    }
+                    Image(systemName: "moon.stars.fill")
+                        .font(.system(size: 80))
+                        .foregroundColor(.white.opacity(0.9))
+                        .shadow(color: .white.opacity(0.3), radius: 20)
+                }
+                .frame(width: 300, height: 300)
+                .offset(y: -10)
+                
+                Spacer()
+            }
+            
+            // 底部控制面板
+            VStack(spacing: 25) {
+                // 选项卡按钮组
+                HStack(spacing: 12) {
+                    TabButton(title: "白噪音", isSelected: selectedTab == 0) { selectedTab = 0 }
+                    TabButton(title: "自然音", isSelected: selectedTab == 1) { selectedTab = 1 }
+                    TabButton(title: "节奏", isSelected: selectedTab == 2) { selectedTab = 2 }
+                }
+                .padding(.horizontal, 20)
+                
+                // 播放控制按钮组
+                HStack(spacing: 22) {
+                    ControlIconGlass(icon: "pause.fill", isMain: true)
+                    ControlIconGlass(icon: "arrow.clockwise")
+                    ControlIconGlass(icon: "timer")
+                    ControlIconGlass(icon: "airplayaudio")
+                }
+                .padding(.vertical, 10)
+                
+                // 底部“发现”按钮
+                Button(action: {
+                    // 这里可以添加点击跳转逻辑
+                }) {
+                    Text("发现")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 85)
+                        .background(
+                            ZStack {
+                                Color(hex: "0F0F0F").opacity(0.74)
+                                LinearGradient(colors: [.white.opacity(0.15), .clear], startPoint: .topLeading, endPoint: .bottomTrailing)
+                            }
+                        )
+                        // 使用全局的 RoundedCorner
+                        .clipShape(RoundedCorner(radius: 40, corners: [.topLeft, .topRight]))
+                        .overlay(
+                            RoundedCorner(radius: 40, corners: [.topLeft, .topRight])
+                                .stroke(Color.white.opacity(0.15), lineWidth: 1)
+                        )
+                }
+                .padding(.bottom, -15) // 稍微探出安全区外，增加沉浸感
+            }
+            .frame(maxWidth: .infinity)
+            .background(
+                Color(hex: "0F0F0F")
+                    .opacity(0.5)
+                    .blur(radius: 30)
+                    .ignoresSafeArea()
+            )
+            .offset(y: innerDragOffset)
+        }
+        // 全屏拖拽返回手势
+        .gesture(
+            DragGesture().onChanged { v in 
+                if v.translation.height > 0 { innerDragOffset = v.translation.height } 
+            }
+            .onEnded { v in
+                if v.translation.height > 150 { 
+                    isPresented = false 
+                }
+                withAnimation(.spring()) { innerDragOffset = 0 }
+            }
+        )
+    }
+
+    // MARK: - 3. 内部嵌套组件
+    struct TabButton: View {
+        var title: String
+        var isSelected: Bool
+        var action: () -> Void
+        
+        var body: some View {
+            Button(action: action) {
+                Text(title)
+                    .font(.system(size: 14, weight: isSelected ? .bold : .medium))
+                    .foregroundColor(isSelected ? .white : .white.opacity(0.4))
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 55)
+                    .background(Color(hex: "0F0F0F").opacity(isSelected ? 0.74 : 0.2))
+                    .cornerRadius(18)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 18)
+                            .stroke(Color.white.opacity(isSelected ? 0.3 : 0.1), lineWidth: 1)
+                    )
+            }
+        }
+    }
+
+    struct ControlIconGlass: View {
+        var icon: String
+        var isMain: Bool = false
+        
+        var body: some View {
+            ZStack {
+                Circle()
+                    .fill(Color.white.opacity(0.1))
+                    .overlay(
+                        Circle().stroke(
+                            LinearGradient(
+                                colors: [.white.opacity(0.4), .clear], 
+                                startPoint: .topLeading, 
+                                endPoint: .bottomTrailing
+                            ), 
+                            lineWidth: 1
+                        )
+                    )
+                Image(systemName: icon)
+                    .font(.system(size: isMain ? 22 : 16, weight: .bold))
+                    .foregroundColor(.white)
+            }
+            .frame(width: isMain ? 65 : 52, height: isMain ? 65 : 52)
+        }
+    }
+}
+
+// MARK: - 4. 预览
+#Preview {
+    PlayPage(isPresented: .constant(true))
+}
