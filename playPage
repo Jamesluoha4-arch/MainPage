@@ -1,135 +1,85 @@
 import SwiftUI
 
-// MARK: - 1. 按钮枚举状态
-enum SoundTab: String, CaseIterable {
-    case whiteNoise = "白噪音"
-    case nature = "自然之声"
-    case rhythm = "节奏"
-}
-
-// MARK: - 2. 交互式声音按钮
-struct InteractiveSoundButton: View {
-    var title: String
-    var isSelected: Bool
-    var action: () -> Void
-    
-    var body: some View {
-        Button(action: action) {
-            Text(title)
-                .font(.system(size: 15, weight: isSelected ? .bold : .medium))
-                .foregroundColor(isSelected ? .white : .white.opacity(0.4))
-                .frame(maxWidth: .infinity)
-                .frame(height: 64)
-                // 动态玻璃样式：选中时背景更亮，描边更明显
-                .glassStyle(
-                    opacity: isSelected ? 0.74 : 0.2, 
-                    cornerRadius: 18, 
-                    showBorder: isSelected,
-                    addFloatingEffect: isSelected // 只有选中的按钮内部有漂浮动效
-                )
-                .scaleEffect(isSelected ? 1.05 : 1.0)
-                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
-        }
-    }
-}
-
-// MARK: - 3. 主播放界面
-struct PlaybackView: View {
+struct PlayPage: View {
+    @Binding var isPresented: Bool
     @State private var selectedTab: SoundTab = .whiteNoise
-    @Environment(\.presentationMode) var presentationMode
+    @State private var dragOffset: CGFloat = 0 // 内部下拉位移
     
     var body: some View {
         ZStack {
-            // 背景色
             Color.black.ignoresSafeArea()
             
-            // 主体内容
             VStack(spacing: 0) {
+                // 指示条
+                Capsule().fill(Color.white.opacity(0.3)).frame(width: 40, height: 5).padding(.top, 10)
                 
-                // --- 顶部标题栏 ---
-                HStack {
-                    Spacer()
-                    VStack(spacing: 8) {
-                        Text(selectedTab.rawValue)
-                            .font(.system(size: 28, weight: .bold))
-                            .foregroundColor(.white)
-                        Text("夜间好梦")
-                            .font(.system(size: 14))
-                            .foregroundColor(.gray)
-                    }
-                    Spacer()
+                // 顶部标题
+                VStack(spacing: 8) {
+                    Text(selectedTab.rawValue).font(.system(size: 28, weight: .bold)).foregroundColor(.white)
+                    Text("夜间好梦").font(.system(size: 14)).foregroundColor(.gray)
                 }
-                .overlay(
-                    Button(action: { presentationMode.wrappedValue.dismiss() }) {
-                        Image(systemName: "info.circle.fill")
-                            .font(.system(size: 22))
-                            .foregroundColor(.white.opacity(0.2))
-                    }
-                    .padding(.trailing, 25),
-                    alignment: .trailing
-                )
-                .padding(.top, 40)
+                .padding(.top, 30)
+                .overlay(alignment: .trailing) {
+                    Image(systemName: "info.circle.fill").font(.system(size: 22)).foregroundColor(.white.opacity(0.2)).padding(.trailing, 25)
+                }
                 
-                // --- 中间黑色留白区域 (用于后续添加动效) ---
-                Spacer()
+                Spacer() // 动效预留位
                 
-                // --- 底部交互区块 ---
-                VStack(spacing: 30) {
-                    
-                    // 1. 三个切换按钮 (参考图二、图三逻辑)
+                // 底部交互区
+                VStack(spacing: 35) {
                     HStack(spacing: 15) {
                         ForEach(SoundTab.allCases, id: \.self) { tab in
-                            InteractiveSoundButton(
-                                title: tab.rawValue,
-                                isSelected: selectedTab == tab
-                            ) {
-                                selectedTab = tab
+                            Button(action: { withAnimation(.spring()) { selectedTab = tab } }) {
+                                Text(tab.rawValue)
+                                    .font(.system(size: 15, weight: selectedTab == tab ? .bold : .medium))
+                                    .foregroundColor(selectedTab == tab ? .white : .white.opacity(0.4))
+                                    .frame(maxWidth: .infinity).frame(height: 64)
+                                    .glassStyle(opacity: selectedTab == tab ? 0.74 : 0.15, cornerRadius: 18, showBorder: selectedTab == tab)
                             }
                         }
-                    }
-                    .padding(.horizontal, 20)
+                    }.padding(.horizontal, 20)
                     
-                    // 2. 播放控制条
                     HStack(spacing: 40) {
-                        controlButton(icon: "pause.fill", size: 24)
-                        controlButton(icon: "arrow.clockwise", size: 20)
-                        controlButton(icon: "timer", size: 20)
-                        controlButton(icon: "airplayaudio", size: 20)
+                        ControlIcon(icon: "pause.fill", isMain: true)
+                        ControlIcon(icon: "arrow.clockwise")
+                        ControlIcon(icon: "timer")
+                        ControlIcon(icon: "airplayaudio")
                     }
-                    .padding(.vertical, 20)
                     
-                    // 3. 底部“发现”长按钮
                     Button(action: {}) {
-                        Text("发现")
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 70)
-                            .glassStyle(opacity: 0.4, cornerRadius: 35, showBorder: false)
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 30)
+                        Text("发现").font(.system(size: 16, weight: .medium)).foregroundColor(.white)
+                            .frame(maxWidth: .infinity).frame(height: 70)
+                            .glassStyle(opacity: 0.4, cornerRadius: 35)
+                    }.padding(.horizontal, 20).padding(.bottom, 40)
                 }
             }
+            .offset(y: dragOffset)
         }
-        .navigationBarHidden(true)
-    }
-    
-    // 控制栏按钮辅助函数
-    private func controlButton(icon: String, size: CGFloat) -> some View {
-        Button(action: {}) {
-            Image(systemName: icon)
-                .font(.system(size: size))
-                .foregroundColor(.white)
-                .frame(width: 54, height: 54)
-                .background(Circle().fill(Color.white.opacity(0.15)))
-        }
+        .clipShape(RoundedRectangle(cornerRadius: dragOffset > 0 ? 40 : 0))
+        .gesture(
+            DragGesture()
+                .onChanged { value in
+                    if value.translation.height > 0 { dragOffset = value.translation.height }
+                }
+                .onEnded { value in
+                    if value.translation.height > 150 {
+                        withAnimation(.spring()) {
+                            isPresented = false
+                            dragOffset = 0
+                        }
+                    } else {
+                        withAnimation(.spring()) { dragOffset = 0 }
+                    }
+                }
+        )
     }
 }
 
-// MARK: - 4. 预览
-struct PlaybackView_Previews: PreviewProvider {
-    static var previews: some View {
-        PlaybackView()
+struct ControlIcon: View {
+    var icon: String
+    var isMain: Bool = false
+    var body: some View {
+        Image(systemName: icon).font(.system(size: isMain ? 24 : 18)).foregroundColor(.white)
+            .frame(width: 55, height: 55).background(Circle().fill(Color.white.opacity(0.12)))
     }
 }
