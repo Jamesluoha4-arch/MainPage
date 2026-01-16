@@ -1,0 +1,108 @@
+import SwiftUI
+
+// MARK: - 基础工具
+extension Color {
+    init(hex: String) {
+        let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
+        var int: UInt64 = 0
+        Scanner(string: hex).scanHexInt64(&int)
+        let a, r, g, b: UInt64
+        switch hex.count {
+        case 3: (a, r, g, b) = (255, (int >> 8) * 17, (int >> 4 & 0xF) * 17, (int & 0xF) * 17)
+        case 6: (a, r, g, b) = (255, int >> 16, int >> 8 & 0xFF, int & 0xFF)
+        case 8: (a, r, g, b) = (int >> 24, int >> 16 & 0xFF, int >> 8 & 0xFF, int & 0xFF)
+        default: (a, r, g, b) = (1, 1, 1, 0)
+        }
+        self.init(.sRGB, red: Double(r) / 255, green: Double(g) / 255, blue:  Double(b) / 255, opacity: Double(a) / 255)
+    }
+}
+
+// MARK: - 玻璃质感修饰符
+struct GlassModifier: ViewModifier {
+    var cornerRadius: CGFloat
+    var opacity: Double
+    var showBorder: Bool
+    var addFloatingEffect: Bool = false
+    
+    func body(content: Content) -> some View {
+        content
+            .background(
+                ZStack {
+                    Color(hex: "0F0F0F").opacity(opacity)
+                    if addFloatingEffect {
+                        FloatingBlurCircle()
+                            .mask(RoundedRectangle(cornerRadius: cornerRadius))
+                    }
+                    LinearGradient(stops: [
+                        .init(color: .white.opacity(0.12), location: 0),
+                        .init(color: .clear, location: 0.5)
+                    ], startPoint: .topLeading, endPoint: .bottomTrailing)
+                }
+            )
+            .cornerRadius(cornerRadius)
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius)
+                    .stroke(Color.white.opacity(showBorder ? 0.35 : 0.15), lineWidth: showBorder ? 1.5 : 0.5)
+            )
+    }
+}
+
+extension View {
+    func glassStyle(opacity: Double = 0.74, cornerRadius: CGFloat = 28, showBorder: Bool = false, addFloatingEffect: Bool = false) -> some View {
+        self.modifier(GlassModifier(cornerRadius: cornerRadius, opacity: opacity, showBorder: showBorder, addFloatingEffect: addFloatingEffect))
+    }
+}
+
+// MARK: - 动效组件
+struct FloatingBlurCircle: View {
+    @State private var move = false
+    var body: some View {
+        GeometryReader { proxy in
+            Circle()
+                .fill(Color.white.opacity(0.35))
+                .frame(width: 40, height: 40)
+                .blur(radius: 20)
+                .offset(x: move ? proxy.size.width - 40 : 5, 
+                        y: move ? proxy.size.height - 40 : 5)
+                .onAppear {
+                    withAnimation(.easeInOut(duration: 4).repeatForever(autoreverses: true)) {
+                        move.toggle()
+                    }
+                }
+        }
+    }
+}
+
+struct StarMeteorView: View {
+    @State private var animate = false
+    var delay: Double = 0
+    var body: some View {
+        GeometryReader { proxy in
+            Circle()
+                .fill(Color.white.opacity(0.6))
+                .frame(width: 4, height: 4)
+                .blur(radius: 2)
+                .overlay(
+                    Capsule()
+                        .fill(LinearGradient(colors: [.white.opacity(0.4), .clear], startPoint: .leading, endPoint: .trailing))
+                        .frame(width: 40, height: 2)
+                        .rotationEffect(.degrees(45), anchor: .leading),
+                    alignment: .leading
+                )
+                .offset(x: animate ? proxy.size.width + 50 : -50,
+                        y: animate ? proxy.size.height + 50 : -50)
+                .onAppear {
+                    withAnimation(Animation.linear(duration: 2.0).repeatForever(autoreverses: false).delay(delay)) {
+                        animate = true
+                    }
+                }
+        }.clipped()
+    }
+}
+
+// MARK: - 公共数据模型
+enum SoundTab: String, CaseIterable {
+    case whiteNoise = "白噪音"
+    case nature = "自然之声"
+    case rhythm = "节奏"
+}
