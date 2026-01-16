@@ -1,0 +1,135 @@
+import SwiftUI
+
+// MARK: - 1. 按钮枚举状态
+enum SoundTab: String, CaseIterable {
+    case whiteNoise = "白噪音"
+    case nature = "自然之声"
+    case rhythm = "节奏"
+}
+
+// MARK: - 2. 交互式声音按钮
+struct InteractiveSoundButton: View {
+    var title: String
+    var isSelected: Bool
+    var action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 15, weight: isSelected ? .bold : .medium))
+                .foregroundColor(isSelected ? .white : .white.opacity(0.4))
+                .frame(maxWidth: .infinity)
+                .frame(height: 64)
+                // 动态玻璃样式：选中时背景更亮，描边更明显
+                .glassStyle(
+                    opacity: isSelected ? 0.74 : 0.2, 
+                    cornerRadius: 18, 
+                    showBorder: isSelected,
+                    addFloatingEffect: isSelected // 只有选中的按钮内部有漂浮动效
+                )
+                .scaleEffect(isSelected ? 1.05 : 1.0)
+                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
+        }
+    }
+}
+
+// MARK: - 3. 主播放界面
+struct PlaybackView: View {
+    @State private var selectedTab: SoundTab = .whiteNoise
+    @Environment(\.presentationMode) var presentationMode
+    
+    var body: some View {
+        ZStack {
+            // 背景色
+            Color.black.ignoresSafeArea()
+            
+            // 主体内容
+            VStack(spacing: 0) {
+                
+                // --- 顶部标题栏 ---
+                HStack {
+                    Spacer()
+                    VStack(spacing: 8) {
+                        Text(selectedTab.rawValue)
+                            .font(.system(size: 28, weight: .bold))
+                            .foregroundColor(.white)
+                        Text("夜间好梦")
+                            .font(.system(size: 14))
+                            .foregroundColor(.gray)
+                    }
+                    Spacer()
+                }
+                .overlay(
+                    Button(action: { presentationMode.wrappedValue.dismiss() }) {
+                        Image(systemName: "info.circle.fill")
+                            .font(.system(size: 22))
+                            .foregroundColor(.white.opacity(0.2))
+                    }
+                    .padding(.trailing, 25),
+                    alignment: .trailing
+                )
+                .padding(.top, 40)
+                
+                // --- 中间黑色留白区域 (用于后续添加动效) ---
+                Spacer()
+                
+                // --- 底部交互区块 ---
+                VStack(spacing: 30) {
+                    
+                    // 1. 三个切换按钮 (参考图二、图三逻辑)
+                    HStack(spacing: 15) {
+                        ForEach(SoundTab.allCases, id: \.self) { tab in
+                            InteractiveSoundButton(
+                                title: tab.rawValue,
+                                isSelected: selectedTab == tab
+                            ) {
+                                selectedTab = tab
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                    
+                    // 2. 播放控制条
+                    HStack(spacing: 40) {
+                        controlButton(icon: "pause.fill", size: 24)
+                        controlButton(icon: "arrow.clockwise", size: 20)
+                        controlButton(icon: "timer", size: 20)
+                        controlButton(icon: "airplayaudio", size: 20)
+                    }
+                    .padding(.vertical, 20)
+                    
+                    // 3. 底部“发现”长按钮
+                    Button(action: {}) {
+                        Text("发现")
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 70)
+                            .glassStyle(opacity: 0.4, cornerRadius: 35, showBorder: false)
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 30)
+                }
+            }
+        }
+        .navigationBarHidden(true)
+    }
+    
+    // 控制栏按钮辅助函数
+    private func controlButton(icon: String, size: CGFloat) -> some View {
+        Button(action: {}) {
+            Image(systemName: icon)
+                .font(.system(size: size))
+                .foregroundColor(.white)
+                .frame(width: 54, height: 54)
+                .background(Circle().fill(Color.white.opacity(0.15)))
+        }
+    }
+}
+
+// MARK: - 4. 预览
+struct PlaybackView_Previews: PreviewProvider {
+    static var previews: some View {
+        PlaybackView()
+    }
+}
