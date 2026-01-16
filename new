@@ -197,7 +197,7 @@ extension View {
     }
 }
 
-// MARK: - 4. 辅助组件
+// MARK: - 4. 业务组件
 struct SceneCard: View {
     var title: String
     var imageName: String
@@ -209,15 +209,22 @@ struct SceneCard: View {
     var body: some View {
         ZStack(alignment: titleAlignment) {
             if showMeteor { StarMeteorView(delay: meteorDelay) }
-            // 占位图逻辑：实际开发请替换为有效图片资源
-            Rectangle().fill(Color.white.opacity(0.05)) 
+            // 这里会调用你 Assets 里的图片
+            Image(imageName)
+                .resizable()
+                .scaledToFill()
+                .frame(minWidth: 0, maxWidth: .infinity)
+                .frame(height: height)
+                .clipped()
+            
             Text(title)
                 .font(.system(size: 18, weight: .bold))
                 .foregroundColor(.white)
                 .padding(16)
         }
-        .frame(maxWidth: .infinity).frame(height: height)
+        .frame(height: height)
         .glassStyle(opacity: 1.0)
+        .clipShape(RoundedRectangle(cornerRadius: 28))
     }
 }
 
@@ -233,14 +240,13 @@ struct SoundBubble: View {
     }
 }
 
-// MARK: - 5. Mini 播放栏组件 (核心改动区)
+// MARK: - 5. 更新后的 Mini 播放栏组件
 struct MiniPlayerBar: View {
     @Binding var isPlaying: Bool 
     
     var body: some View {
         HStack(spacing: 15) {
             ZStack {
-                // 水波纹联动播放状态
                 if isPlaying {
                     RippleEffectView()
                 }
@@ -254,11 +260,11 @@ struct MiniPlayerBar: View {
             }
             
             VStack(alignment: .leading, spacing: 2) {
-                // 文字内容根据播放状态切换
+                // 实现功能：文字联动状态切换
                 Text(isPlaying ? "正在播放" : "停止播放")
                     .font(.system(size: 12))
                     .foregroundColor(.gray)
-                    .id("statusText_\(isPlaying)") // 强制刷新视图确保过渡平滑
+                    .transition(.opacity) // 让文字切换平滑一点
                 
                 Text("白噪音")
                     .font(.system(size: 18, weight: .semibold))
@@ -271,7 +277,7 @@ struct MiniPlayerBar: View {
                 Image(systemName: "alarm").foregroundColor(.white.opacity(0.7)).font(.system(size: 20))
                 
                 Button(action: {
-                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
                         isPlaying.toggle()
                     }
                 }) {
@@ -317,6 +323,7 @@ struct ContentView: View {
                 VStack(spacing: 40) {
                     headerAndScenesSection
 
+                    // 声音板块
                     VStack(alignment: .leading, spacing: 0) {
                         Text("声音")
                             .font(.system(size: 28, weight: .bold))
@@ -330,10 +337,19 @@ struct ContentView: View {
                             let screenHeight = UIScreen.main.bounds.height
                             
                             ZStack(alignment: .topTrailing) {
-                                // 装饰线条背景
-                                Rectangle().fill(Color.white.opacity(0.02))
+                                // 声音板块背景图
+                                Image("face_lines")
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
                                     .frame(width: 320)
+                                    .opacity(0.6)
                                     .offset(x: 60, y: 100)
+                                
+                                Image("image_shooting_star")
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 140)
+                                    .offset(x: -15, y: -20)
                                 
                                 VStack(alignment: .leading, spacing: 20) {
                                     VStack(alignment: .leading, spacing: 8) {
@@ -372,13 +388,13 @@ struct ContentView: View {
                 .padding(.bottom, 140) 
             }
             
-            // 底部 Mini 播放栏
             MiniPlayerBar(isPlaying: $isPlaying)
         }
     }
     
     private var headerAndScenesSection: some View {
         VStack(spacing: 28) {
+            // Header
             HStack {
                 Circle().stroke(Color.white.opacity(0.4), lineWidth: 1)
                     .frame(width: 34, height: 34)
@@ -392,15 +408,21 @@ struct ContentView: View {
                     .foregroundColor(.white)
             }.padding(.horizontal)
 
+            // Banner
             ZStack(alignment: .bottomLeading) {
-                Rectangle().fill(LinearGradient(colors: [Color(hex: "333333"), .black], startPoint: .topLeading, endPoint: .bottomTrailing))
+                Image("image_share")
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(height: 200)
                     .scaleEffect(bannerAnimate ? 1.2 : 1.0)
                     .animation(Animation.easeInOut(duration: 8.0).repeatForever(autoreverses: true), value: bannerAnimate)
+                
                 Text("分享并邀请").font(.system(size: 22, weight: .heavy)).foregroundColor(.white).padding(.leading, 24).padding(.bottom, 30)
             }
             .frame(height: 200).frame(maxWidth: .infinity).clipShape(RoundedRectangle(cornerRadius: 28)).glassStyle(opacity: 0.74).padding(.horizontal)
             .onAppear { bannerAnimate = true }
 
+            // 场景卡片
             VStack(alignment: .leading, spacing: 18) {
                 HStack {
                     Text("场景").font(.system(size: 24, weight: .bold)).foregroundColor(.white)
@@ -422,8 +444,6 @@ struct ContentView: View {
         }
     }
 }
-
-
 
 
 import SwiftUI
