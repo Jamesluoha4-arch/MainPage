@@ -1,5 +1,22 @@
 import SwiftUI
 
+@main // 程序入口标记
+struct MySleepApp: App { // 遵循 App 协议
+    
+    var body: some Scene {
+        WindowGroup {
+            // 这里是根视图，决定了打开 App 看到哪个页面
+            ContentView() 
+        }
+    }
+}
+
+
+
+
+
+import SwiftUI
+
 // MARK: - 1. 基础工具与颜色扩展
 extension Color {
     init(hex: String) {
