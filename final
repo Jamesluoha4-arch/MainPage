@@ -181,3 +181,111 @@ struct SoundBubble: View {
             .glassStyle(opacity: 0.74, cornerRadius: 40, showBorder: true)
     }
 }
+
+
+
+import SwiftUI
+
+struct PlayPage: View {
+    @Binding var isPresented: Bool
+    @State private var selectedTab: Int = 0
+    @State private var dragOffset: CGFloat = 0
+    
+    var body: some View {
+        ZStack {
+            Color.black.ignoresSafeArea()
+            
+            VStack(spacing: 0) {
+                // 顶部手柄
+                Capsule().fill(Color.white.opacity(0.3)).frame(width: 40, height: 5).padding(.top, 10)
+                
+                // 标题区
+                VStack(spacing: 8) {
+                    Text(selectedTab == 0 ? "白噪音" : (selectedTab == 1 ? "自然之声" : "节奏"))
+                        .font(.system(size: 28, weight: .bold)).foregroundColor(.white)
+                    Text("夜间好梦").font(.system(size: 14)).foregroundColor(.gray)
+                }
+                .padding(.top, 30)
+                .overlay(alignment: .trailing) {
+                    Image(systemName: "info.circle.fill").font(.system(size: 22))
+                        .foregroundColor(.white.opacity(0.2)).padding(.trailing, 25)
+                }
+                
+                Spacer() // 预留给中间的动效
+                
+                // --- 交互控制区 (参考图2/图3参数) ---
+                VStack(spacing: 35) {
+                    HStack(spacing: 15) {
+                        TabButton(title: "白噪音", isSelected: selectedTab == 0) { selectedTab = 0 }
+                        TabButton(title: "自然之声", isSelected: selectedTab == 1) { selectedTab = 1 }
+                        TabButton(title: "节奏", isSelected: selectedTab == 2) { selectedTab = 2 }
+                    }
+                    .padding(.horizontal, 20)
+                    
+                    // 播放按钮组
+                    HStack(spacing: 40) {
+                        PlayControlIcon(icon: "pause.fill", isMain: true)
+                        PlayControlIcon(icon: "arrow.clockwise")
+                        PlayControlIcon(icon: "timer")
+                        PlayControlIcon(icon: "airplayaudio")
+                    }
+                    
+                    // 底部“发现”按钮
+                    Button(action: {}) {
+                        Text("发现").font(.system(size: 16, weight: .medium)).foregroundColor(.white)
+                            .frame(maxWidth: .infinity).frame(height: 70)
+                            .glassStyle(opacity: 0.4, cornerRadius: 35)
+                    }
+                    .padding(.horizontal, 20).padding(.bottom, 40)
+                }
+            }
+            .offset(y: dragOffset)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: dragOffset > 0 ? 40 : 0))
+        .gesture(
+            DragGesture().onChanged { v in if v.translation.height > 0 { dragOffset = v.translation.height } }
+                .onEnded { v in
+                    if v.translation.height > 150 { withAnimation { isPresented = false; dragOffset = 0 } }
+                    else { withAnimation { dragOffset = 0 } }
+                }
+        )
+    }
+}
+
+// 辅助组件
+struct TabButton: View {
+    var title: String; var isSelected: Bool; var action: () -> Void
+    var body: some View {
+        Button(action: action) {
+            Text(title).font(.system(size: 15, weight: isSelected ? .bold : .medium))
+                .foregroundColor(isSelected ? .white : .white.opacity(0.5))
+                .frame(maxWidth: .infinity).frame(height: 65)
+                .glassStyle(opacity: isSelected ? 0.74 : 0.15, cornerRadius: 20, showBorder: isSelected)
+        }
+    }
+}
+
+struct PlayControlIcon: View {
+    var icon: String; var isMain: Bool = false
+    var body: some View {
+        Image(systemName: icon).font(.system(size: isMain ? 24 : 18)).foregroundColor(.white)
+            .frame(width: 55, height: 55).background(Circle().fill(Color.white.opacity(0.12)))
+    }
+}
+
+// --- 通用样式扩展 (由图2、图3参数转换) ---
+extension View {
+    func glassStyle(opacity: Double, cornerRadius: CGFloat, showBorder: Bool = false) -> some View {
+        self.background(
+            ZStack {
+                Color(red: 15/255, green: 15/255, blue: 15/255).opacity(opacity) // #0F0F0F
+                LinearGradient(colors: [.white.opacity(0.12), .clear], startPoint: .topLeading, endPoint: .bottomTrailing)
+            }
+        )
+        .cornerRadius(cornerRadius)
+        .overlay(
+            RoundedRectangle(cornerRadius: cornerRadius)
+                .stroke(Color.white.opacity(showBorder ? 0.35 : 0.1), lineWidth: showBorder ? 1.5 : 0.5)
+        )
+    }
+}
