@@ -292,15 +292,27 @@ struct ContentView: View {
 
 import SwiftUI
 
-// MARK: - 1. 水波纹动效组件
+// MARK: - 1. 水波纹动效组件（已修改：渐变线条，增强视觉效果）
 struct RippleCircle: View {
     @State private var scale: CGFloat = 0.2
-    @State private var opacity: Double = 0.6
+    @State private var opacity: Double = 0.8 // 初始不透明度提高
     var delay: Double 
     
     var body: some View {
         Circle()
-            .stroke(Color.white.opacity(0.4), lineWidth: 1)
+            // 修改点：使用 AngularGradient 或 LinearGradient 结合透明度实现线条渐变
+            // 这里的线条使用了渐变色，使其看起来更有质感
+            .stroke(
+                LinearGradient(
+                    gradient: Gradient(colors: [
+                        Color.white.opacity(0.8), // 较亮的部分
+                        Color.white.opacity(0.2)  // 较暗的部分
+                    ]),
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                ),
+                lineWidth: 2 // 修改点：线条加粗，使其更明显
+            )
             .scaleEffect(scale)
             .opacity(opacity)
             .onAppear {
@@ -309,7 +321,7 @@ struct RippleCircle: View {
                         .delay(delay)
                         .repeatForever(autoreverses: false)
                 ) {
-                    scale = 1.5
+                    scale = 1.6 // 扩散范围稍作调整
                     opacity = 0.0
                 }
             }
@@ -343,12 +355,15 @@ struct PlayPage: View {
                 Spacer().frame(height: 60) // 月亮位置控制
                 
                 ZStack {
+                    // 水波纹层
                     ForEach(0..<3) { i in
                         RippleCircle(delay: Double(i) * 1.0)
                     }
+                    
+                    // 月亮中心图标
                     Image(systemName: "moon.stars.fill")
                         .font(.system(size: 80))
-                        .foregroundColor(.white.opacity(0.8))
+                        .foregroundColor(.white.opacity(0.9))
                         .shadow(color: .white.opacity(0.3), radius: 20)
                 }
                 .frame(width: 300, height: 300)
@@ -411,7 +426,6 @@ struct PlayPage: View {
         )
     }
 
-    // --- 将子组件嵌套在内，解决 'Cannot find in scope' 报错 ---
     struct TabButton: View {
         var title: String; var isSelected: Bool; var action: () -> Void
         var body: some View {
@@ -439,7 +453,6 @@ struct PlayPage: View {
     }
 }
 
-// MARK: - 3. 辅助 Shape 
 struct RoundedCorner: Shape {
     var radius: CGFloat = .infinity; var corners: UIRectCorner = .allCorners
     func path(in rect: CGRect) -> Path {
@@ -448,3 +461,23 @@ struct RoundedCorner: Shape {
     }
 }
 
+// 确保你有一个 Color 的 hex 初始化，如果没有请添加：
+extension Color {
+    init(hex: String) {
+        let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
+        var int: UInt64 = 0
+        Scanner(string: hex).scanHexInt64(&int)
+        let a, r, g, b: UInt64
+        switch hex.count {
+        case 3: (a, r, g, b) = (255, (int >> 8) * 17, (int >> 4 & 0xF) * 17, (int & 0xF) * 17)
+        case 6: (a, r, g, b) = (255, int >> 16, int >> 8 & 0xFF, int & 0xFF)
+        case 8: (a, r, g, b) = (int >> 24, int >> 16 & 0xFF, int >> 8 & 0xFF, int & 0xFF)
+        default: (a, r, g, b) = (1, 1, 1, 0)
+        }
+        self.init(.sRGB, red: Double(r) / 255, green: Double(g) / 255, blue: Double(b) / 255, opacity: Double(a) / 255)
+    }
+}
+
+#Preview {
+    PlayPage(isPresented: .constant(true))
+}
