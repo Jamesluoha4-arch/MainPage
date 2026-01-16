@@ -1,0 +1,11 @@
+import SwiftUI
+
+@main
+struct YourProjectNameApp: App {
+    var body: some Scene {
+        WindowGroup {
+            // 这里调用容器视图，它负责管理两个页面的切换
+            MainView()
+        }
+    }
+}
