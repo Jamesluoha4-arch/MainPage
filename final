@@ -292,6 +292,32 @@ struct ContentView: View {
 
 import SwiftUI
 
+// MARK: - 1. 水波纹动效组件
+struct RippleCircle: View {
+    @State private var scale: CGFloat = 0.2
+    @State private var opacity: Double = 0.6
+    var delay: Double 
+    
+    var body: some View {
+        Circle()
+            .stroke(Color.white.opacity(0.4), lineWidth: 1)
+            .scaleEffect(scale)
+            .opacity(opacity)
+            .onAppear {
+                // 核心动效：不断向外扩散并消失
+                withAnimation(
+                    Animation.easeOut(duration: 3.0)
+                        .delay(delay)
+                        .repeatForever(autoreverses: false)
+                ) {
+                    scale = 1.5
+                    opacity = 0.0
+                }
+            }
+    }
+}
+
+// MARK: - 2. 主页面视图
 struct PlayPage: View {
     @Binding var isPresented: Bool
     @State private var selectedTab: Int = 0
@@ -299,53 +325,63 @@ struct PlayPage: View {
     
     var body: some View {
         ZStack(alignment: .bottom) {
-            // 1. 底层背景
+            // 背景层
             Color(hex: "050505").ignoresSafeArea()
             
-            // 2. 顶部内容区
+            // --- 顶部内容区 ---
             VStack(spacing: 0) {
+                // 顶部手柄
                 Capsule()
                     .fill(Color.white.opacity(0.3))
                     .frame(width: 40, height: 5)
                     .padding(.top, 12)
                 
+                // 标题
                 VStack(spacing: 8) {
-                    Text(selectedTab == 0 ? "白噪音" : (selectedTab == 1 ? "自然之声" : "节奏"))
-                        .font(.system(size: 28, weight: .bold)).foregroundColor(.white)
-                    Text("夜间好梦").font(.system(size: 14)).foregroundColor(.gray)
+                    Text(selectedTabTitle)
+                        .font(.system(size: 28, weight: .bold))
+                        .foregroundColor(.white)
+                    Text("夜间好梦")
+                        .font(.system(size: 14))
+                        .foregroundColor(.gray)
                 }
                 .padding(.top, 30)
                 
-                Spacer()
+                // 【月亮位置控制】：通过这个 Spacer 的高度调整月亮距离标题的远近
+                Spacer().frame(height: 60) 
                 
-                // 核心视觉区
+                // --- 核心动效区 (月亮 + 水波纹) ---
                 ZStack {
-                    Circle()
-                        .stroke(Color.white.opacity(0.05), lineWidth: 1)
-                        .frame(width: 280, height: 280)
+                    // 水波纹层
+                    ForEach(0..<3) { i in
+                        RippleCircle(delay: Double(i) * 1.0)
+                    }
                     
+                    // 月亮图标 (SF Symbols)
                     Image(systemName: "moon.stars.fill")
                         .font(.system(size: 80))
-                        .foregroundColor(.white.opacity(0.7))
-                        .shadow(color: .white.opacity(0.2), radius: 20)
+                        .foregroundColor(.white.opacity(0.8))
+                        .shadow(color: .white.opacity(0.3), radius: 20)
                 }
+                .frame(width: 300, height: 300)
+                // 【月亮微调】：y 为负数向上移，正数向下移
+                .offset(y: -10) 
                 
-                Spacer()
-                    .frame(height: 260) // 为底部托盘留出空间
+                Spacer() // 自动推挤
             }
             
-            // 3. 底部玻璃质感控制面板 (连接到屏幕最底部，营造拖动感)
+            // --- 底部交互面板 (托盘式设计) ---
             VStack(spacing: 25) {
                 // 标签切换
                 HStack(spacing: 12) {
                     TabButton(title: "白噪音", isSelected: selectedTab == 0) { selectedTab = 0 }
-                    TabButton(title: "自然之声", isSelected: selectedTab == 1) { selectedTab = 1 }
+                    TabButton(title: "自然音", isSelected: selectedTab == 1) { selectedTab = 1 }
                     TabButton(title: "节奏", isSelected: selectedTab == 2) { selectedTab = 2 }
                 }
                 .padding(.horizontal, 20)
                 
-                // 播放控制图标 (增加玻璃质感，缩小间距)
-                HStack(spacing: 22) { // 间距更紧凑
+                // 紧凑型玻璃控制栏
+                HStack(spacing: 22) { // 缩短间距
                     ControlIconGlass(icon: "pause.fill", isMain: true)
                     ControlIconGlass(icon: "arrow.clockwise")
                     ControlIconGlass(icon: "timer")
@@ -353,77 +389,77 @@ struct PlayPage: View {
                 }
                 .padding(.vertical, 10)
                 
-                // 发现按钮 (卡片连接到底部)
+                // 发现卡片 (连接到底部)
                 Button(action: {}) {
                     Text("发现")
                         .font(.system(size: 18, weight: .semibold))
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
-                        .frame(height: 80) // 增加高度增强连接感
+                        .frame(height: 85) // 增加高度
                         .background(
                             ZStack {
-                                // Figma 参数: #0F0F0F @ 74%
                                 Color(hex: "0F0F0F").opacity(0.74)
-                                // Figma 渐变边框效果
-                                LinearGradient(colors: [.white.opacity(0.2), .clear], startPoint: .topLeading, endPoint: .bottomTrailing)
+                                LinearGradient(colors: [.white.opacity(0.15), .clear], startPoint: .topLeading, endPoint: .bottomTrailing)
                             }
                         )
-                        .clipShape(RoundedCorner(radius: 40, corners: [.topLeft, .topRight])) // 仅上圆角，下方连接屏幕
+                        .clipShape(RoundedCorner(radius: 40, corners: [.topLeft, .topRight]))
                         .overlay(
                             RoundedCorner(radius: 40, corners: [.topLeft, .topRight])
                                 .stroke(Color.white.opacity(0.15), lineWidth: 1)
                         )
                 }
-                .padding(.bottom, -10) // 抵消安全区间隙，使其贴合底部
+                .padding(.bottom, -15) // 消除底部安全区留白，视觉上连接屏幕
             }
             .frame(maxWidth: .infinity)
             .background(
-                // 底部托盘的整体背景，营造向上拉起的感觉
-                Color(hex: "0F0F0F").opacity(0.4)
-                    .blur(radius: 20)
+                Color(hex: "0F0F0F").opacity(0.5)
+                    .blur(radius: 30)
                     .ignoresSafeArea()
             )
             .offset(y: innerDragOffset)
         }
+        // 整个页面的下拉手势
         .gesture(
             DragGesture().onChanged { v in 
                 if v.translation.height > 0 { innerDragOffset = v.translation.height } 
             }
             .onEnded { v in
                 if v.translation.height > 150 { isPresented = false }
-                withAnimation(.spring()) { innerDragOffset = 0 }
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) { innerDragOffset = 0 }
             }
         )
     }
+    
+    private var selectedTabTitle: String {
+        ["白噪音", "自然之声", "节奏"][selectedTab]
+    }
 }
 
-// MARK: - 玻璃质感控制图标
+// MARK: - 3. 玻璃感子组件
 struct ControlIconGlass: View {
     var icon: String
     var isMain: Bool = false
     
     var body: some View {
         ZStack {
-            // 背景圆盘增加多层滤镜质感
             Circle()
-                .fill(Color.white.opacity(0.08))
+                .fill(Color.white.opacity(0.1))
                 .overlay(
                     Circle()
                         .stroke(
                             LinearGradient(colors: [.white.opacity(0.4), .clear], startPoint: .topLeading, endPoint: .bottomTrailing),
-                            lineWidth: 0.8
+                            lineWidth: 1
                         )
                 )
             
             Image(systemName: icon)
-                .font(.system(size: isMain ? 22 : 18, weight: .medium))
+                .font(.system(size: isMain ? 22 : 16, weight: .bold))
                 .foregroundColor(.white)
         }
-        .frame(width: isMain ? 64 : 54, height: isMain ? 64 : 54)
+        .frame(width: isMain ? 65 : 52, height: isMain ? 65 : 52)
     }
 }
 
-// MARK: - 补全 TabButton
 struct TabButton: View {
     var title: String
     var isSelected: Bool
@@ -435,26 +471,18 @@ struct TabButton: View {
                 .font(.system(size: 14, weight: isSelected ? .bold : .medium))
                 .foregroundColor(isSelected ? .white : .white.opacity(0.4))
                 .frame(maxWidth: .infinity)
-                .frame(height: 54)
-                .background(
-                    ZStack {
-                        // Figma: #0F0F0F @ 74% 或 15%
-                        Color(hex: "0F0F0F").opacity(isSelected ? 0.74 : 0.15)
-                        if isSelected {
-                            LinearGradient(colors: [.white.opacity(0.1), .clear], startPoint: .topLeading, endPoint: .bottomTrailing)
-                        }
-                    }
-                )
+                .frame(height: 55)
+                .background(Color(hex: "0F0F0F").opacity(isSelected ? 0.74 : 0.2))
                 .cornerRadius(18)
                 .overlay(
                     RoundedRectangle(cornerRadius: 18)
-                        .stroke(Color.white.opacity(isSelected ? 0.3 : 0.05), lineWidth: 1)
+                        .stroke(Color.white.opacity(isSelected ? 0.3 : 0.1), lineWidth: 1)
                 )
         }
     }
 }
 
-// MARK: - 辅助工具 (处理特定圆角)
+// MARK: - 4. 辅助工具
 struct RoundedCorner: Shape {
     var radius: CGFloat = .infinity
     var corners: UIRectCorner = .allCorners
@@ -464,6 +492,21 @@ struct RoundedCorner: Shape {
     }
 }
 
+extension Color {
+    init(hex: String) {
+        let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
+        var int: UInt64 = 0
+        Scanner(string: hex).scanHexInt64(&int)
+        let a, r, g, b: UInt64
+        switch hex.count {
+        case 6: (a, r, g, b) = (255, int >> 16, int >> 8 & 0xFF, int & 0xFF)
+        default: (a, r, g, b) = (255, 0, 0, 0)
+        }
+        self.init(.sRGB, red: Double(r) / 255, green: Double(g) / 255, blue: Double(b) / 255, opacity: Double(a) / 255)
+    }
+}
+
+// MARK: - 预览
 #Preview {
     PlayPage(isPresented: .constant(true))
 }
