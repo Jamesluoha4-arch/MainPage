@@ -470,7 +470,7 @@ struct PlayPage: View {
     @State private var activeOverlay: ActiveOverlay? = nil
     @State private var isInterceptOn: Bool = false 
     
-    // 动画状态
+    // 声音编辑动画状态
     @State private var isApplyingSound: Bool = false
     @State private var showSuccessIcon: Bool = false
     
@@ -494,7 +494,7 @@ struct PlayPage: View {
             }
             
             VStack(spacing: 0) {
-                // Header 指示条
+                // Header
                 ZStack(alignment: .trailing) {
                     Capsule().fill(Color.white.opacity(0.3)).frame(width: 40, height: 5).frame(maxWidth: .infinity)
                     Button(action: { withAnimation { showInfoOverlay = true } }) {
@@ -511,7 +511,7 @@ struct PlayPage: View {
                 
                 Spacer()
                 
-                // 中央动画
+                // 中央播放状态动画
                 ZStack {
                     if isPlaying {
                         ForEach(0..<3) { i in RippleCircle(delay: Double(i) * 1.0, isAnimating: isPlaying) }
@@ -521,7 +521,7 @@ struct PlayPage: View {
                 
                 Spacer()
                 
-                // 底部控制
+                // 底部控制面板
                 VStack(spacing: 20) {
                     HStack(spacing: 12) {
                         TabButton(title: "白噪音", isSelected: selectedTab == 0) { selectedTab = 0 }
@@ -529,7 +529,7 @@ struct PlayPage: View {
                         TabButton(title: "节奏", isSelected: selectedTab == 2) { selectedTab = 2 }
                     }.padding(.horizontal, 20)
                     
-                    // 工具滑块
+                    // 横向工具栏
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 12) {
                             if countdownSeconds > 0 {
@@ -550,7 +550,7 @@ struct PlayPage: View {
                         }.padding(.horizontal, 20)
                     }
                     
-                    // 播放按钮组
+                    // 主控制按钮
                     HStack(spacing: 22) {
                         Button(action: { withAnimation { isPlaying.toggle() } }) {
                             ControlIconGlass(icon: isPlaying ? "pause.fill" : "play.fill", isMain: true)
@@ -560,19 +560,19 @@ struct PlayPage: View {
                         ControlIconGlass(icon: "airplayaudio")
                     }
                     
-                    // 发现 (使用 GlobalUtils 的 RoundedCorner)
+                    // 底部“发现”按钮 (修正了 UIRectCorner 语法)
                     Button(action: {}) {
                         Text("发现").font(.system(size: 18, weight: .semibold)).foregroundColor(.white)
                             .frame(maxWidth: .infinity).frame(height: 85)
                             .background(Color(hex: "0F0F0F").opacity(0.8))
-                            .clipShape(RoundedCorner(radius: 40, corners: [UIRectCorner.topLeft, UIRectCorner.topRight]))
+                            .clipShape(RoundedCorner(radius: 40, corners: [.topLeft, .topRight]))
                     }.padding(.bottom, -15)
                 }
             }
             .blur(radius: (activeOverlay != nil || showInfoOverlay) ? 15 : 0)
             .offset(y: innerDragOffset)
             
-            // --- 覆盖弹层 ---
+            // --- 浮窗图层 ---
             if let overlay = activeOverlay {
                 overlayContent(for: overlay)
                     .transition(.move(edge: .bottom))
@@ -588,7 +588,7 @@ struct PlayPage: View {
         .onReceive(timer) { _ in updateCountdown() }
     }
 
-    // MARK: - 弹层路由实现
+    // MARK: - 弹窗内容路由
     @ViewBuilder
     private func overlayContent(for item: ActiveOverlay) -> some View {
         switch item {
@@ -599,6 +599,7 @@ struct PlayPage: View {
         }
     }
 
+    // 1. 反馈 (修正了 corners 报错)
     private var feedbackView: some View {
         VStack(spacing: 20) {
             Text("声音反馈").font(.headline).foregroundColor(.white).padding(.top, 25)
@@ -613,9 +614,11 @@ struct PlayPage: View {
                 .padding(.bottom, 35)
         }
         .padding(.horizontal, 25).frame(height: 300)
-        .background(Color.black.cornerRadius(radius: 30, corners: [UIRectCorner.topLeft, UIRectCorner.topRight]))
+        .background(Color.black)
+        .clipShape(RoundedCorner(radius: 30, corners: [.topLeft, .topRight]))
     }
 
+    // 2. 声音编辑 (修正了 corners 报错)
     private var soundEditView: some View {
         VStack(alignment: .leading, spacing: 20) {
             Text("声音编辑").font(.title3.bold()).foregroundColor(.white)
@@ -628,9 +631,11 @@ struct PlayPage: View {
                 .frame(maxWidth: .infinity).frame(height: 50).background(Color.gray.opacity(0.3)).foregroundColor(.white).cornerRadius(12)
         }
         .padding(25).frame(height: 400)
-        .background(Color.black.cornerRadius(radius: 30, corners: [UIRectCorner.topLeft, UIRectCorner.topRight]))
+        .background(Color.black)
+        .clipShape(RoundedCorner(radius: 30, corners: [.topLeft, .topRight]))
     }
 
+    // 3. 闹钟全屏
     private var alarmFullScreenView: some View {
         ZStack {
             Color.black.ignoresSafeArea()
@@ -649,6 +654,7 @@ struct PlayPage: View {
         }
     }
 
+    // 4. 混合设置 (修正了 corners 报错)
     private var mixView: some View {
         VStack(alignment: .leading, spacing: 20) {
             HStack { Text("AirPlay").font(.headline); Spacer(); Image(systemName: "airplayaudio") }.foregroundColor(.white)
@@ -659,9 +665,11 @@ struct PlayPage: View {
                 .padding(.top, 10)
         }
         .padding(25).frame(height: 280)
-        .background(Color.black.cornerRadius(radius: 30, corners: [UIRectCorner.topLeft, UIRectCorner.topRight]))
+        .background(Color.black)
+        .clipShape(RoundedCorner(radius: 30, corners: [.topLeft, .topRight]))
     }
 
+    // 信息详情
     private var infoOverlayView: some View {
         ZStack {
             Color.black.ignoresSafeArea()
@@ -676,7 +684,7 @@ struct PlayPage: View {
         }
     }
 
-    // MARK: - 逻辑
+    // MARK: - 私有逻辑
     private func startApplySoundAnimation() {
         activeOverlay = nil
         withAnimation { isApplyingSound = true }
