@@ -509,6 +509,43 @@ struct ParticleSystemView: View {
     }
 }
 
+struct GridBackgroundView: View {
+    var body: some View {
+        GeometryReader { proxy in
+            Path { path in
+                let step: CGFloat = 30
+                for x in stride(from: 0, through: proxy.size.width, by: step) {
+                    path.move(to: CGPoint(x: x, y: 0))
+                    path.addLine(to: CGPoint(x: x, y: proxy.size.height))
+                }
+                for y in stride(from: 0, through: proxy.size.height, by: step) {
+                    path.move(to: CGPoint(x: 0, y: y))
+                    path.addLine(to: CGPoint(x: proxy.size.width, y: y))
+                }
+            }
+            .stroke(Color.white.opacity(0.05), lineWidth: 1)
+        }.ignoresSafeArea()
+    }
+}
+
+// 中心几何脉冲动效
+struct RhythmicGeometryView: View {
+    @State private var isPulsing = false
+    var body: some View {
+        ZStack {
+            ForEach(0..<4) { i in
+                RoundedRectangle(cornerRadius: 20)
+                    .stroke(Color.white.opacity(0.3), lineWidth: 2)
+                    .frame(width: 80 + CGFloat(i * 35), height: 80 + CGFloat(i * 35))
+                    .scaleEffect(isPulsing ? 1.1 : 0.9)
+                    .opacity(isPulsing ? 0.8 : 0.2)
+                    .animation(.easeInOut(duration: 0.6).repeatForever(autoreverses: true).delay(Double(i) * 0.1), value: isPulsing)
+            }
+        }
+        .onAppear { isPulsing = true }
+    }
+}
+
 struct SingleParticleView: View {
     let isColored: Bool
     let containerSize: CGSize
@@ -575,6 +612,12 @@ struct PlayPage: View {
     
     @State private var mixAudioEnabled: Bool = true
     @State private var animationResetID = UUID() 
+
+// 在已有的变量后面添加这些
+    @State private var focusRounds: Int = 1
+    @State private var workDuration: Int = 25
+    @State private var breakDuration: Int = 5
+    @State private var focusActivity: String = ""
     
     let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
@@ -582,7 +625,7 @@ struct PlayPage: View {
         
         ZStack(alignment: .bottom) {
             Color(hex: "050505").ignoresSafeArea()
-            
+            if selectedTab == 2 { GridBackgroundView()
             VStack(spacing: 0) {
                 // Header
                 ZStack(alignment: .trailing) {
@@ -620,11 +663,12 @@ struct PlayPage: View {
                 // 中央区域：切换水波纹与粒子动效
                 ZStack {
                     if selectedTab == 1 {
-                        // 自然音：漂浮粒子动效
-                        ParticleSystemView()
-                            .transition(.opacity)
+                        ParticleSystemView().transition(.opacity)
+                    } else if selectedTab == 2 {
+                        // 新增：节奏模式的动效
+                        RhythmicGeometryView().transition(.opacity)
                     } else {
-                        // 白噪音与节奏：月亮与水波纹
+                        // 白噪音
                         ZStack {
                             if isPlaying {
                                 ForEach(0..<3) { i in
@@ -634,8 +678,7 @@ struct PlayPage: View {
                             Image(systemName: "moon.stars.fill")
                                 .font(.system(size: 80))
                                 .foregroundColor(.white.opacity(0.9))
-                        }
-                        .transition(.opacity)
+                        }.transition(.opacity)
                     }
                 }
                 .id(animationResetID) // 重置时强制刷新
@@ -738,12 +781,14 @@ struct PlayPage: View {
         .onReceive(timer) { _ in updateCountdown() }
     }
 
-    @ViewBuilder
+   @ViewBuilder
     private func overlayContent(for item: ActiveOverlay) -> some View {
         switch item {
         case .feedback: feedbackView
         case .soundEdit: soundEditView
-        case .alarm: alarmFullScreenView
+        case .alarm:
+            // 修改这里：如果是节奏模式，弹出注意力设置，否则弹出闹钟
+            if selectedTab == 2 { attentionSettingView } else { alarmFullScreenView }
         case .mix: mixView
         case .routine: routineFullScreenView
         }
@@ -920,6 +965,59 @@ struct PlayPage: View {
                 }
                 Spacer()
             }
+        }
+    }
+
+// 注意力集中设置面板
+    private var attentionSettingView: some View {
+        ZStack {
+            Color.black.ignoresSafeArea()
+            VStack(spacing: 25) {
+                HStack {
+                    Text("注意力集中").font(.title2.bold()).foregroundColor(.white)
+                    Spacer()
+                    Button("完成") { withAnimation { activeOverlay = nil } }
+                        .foregroundColor(.white)
+                }.padding(.top, 20)
+                
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("正在做什么？").font(.system(size: 14)).foregroundColor(.gray)
+                    TextField("", text: $focusActivity, prompt: Text("例如：深度写作...").foregroundColor(.gray.opacity(0.5)))
+                        .padding().background(Color.white.opacity(0.1)).cornerRadius(12).foregroundColor(.white)
+                }
+                
+                HStack(spacing: 15) {
+                    VStack(spacing: 8) {
+                        Text("专注时长").font(.caption).foregroundColor(.gray)
+                        Text("\(workDuration) min").font(.system(size: 18, weight: .bold)).foregroundColor(.white)
+                            .frame(maxWidth: .infinity).frame(height: 50).background(Color.white.opacity(0.05)).cornerRadius(12)
+                    }
+                    VStack(spacing: 8) {
+                        Text("间歇休息").font(.caption).foregroundColor(.gray)
+                        Text("\(breakDuration) min").font(.system(size: 18, weight: .bold)).foregroundColor(.white)
+                            .frame(maxWidth: .infinity).frame(height: 50).background(Color.white.opacity(0.05)).cornerRadius(12)
+                    }
+                }
+                
+                Spacer()
+                
+                VStack(spacing: 12) {
+                    HStack {
+                        Button(action: { if focusRounds > 1 { focusRounds -= 1 } }) {
+                            Image(systemName: "minus").foregroundColor(focusRounds == 1 ? .white.opacity(0.2) : .white)
+                        }.frame(width: 44, height: 44)
+                        Spacer()
+                        Text("目标回合：\(focusRounds)").font(.headline).foregroundColor(.white)
+                        Spacer()
+                        Button(action: { focusRounds += 1 }) { Image(systemName: "plus").foregroundColor(.white) }
+                    }.padding(.horizontal).frame(height: 60).background(Color.white.opacity(0.1)).cornerRadius(16)
+                    
+                    Button(action: { withAnimation { activeOverlay = nil } }) {
+                        Text("开始专注").font(.headline).foregroundColor(.black)
+                            .frame(maxWidth: .infinity).frame(height: 60).background(Color.white).cornerRadius(16)
+                    }
+                }.padding(.bottom, 30)
+            }.padding(.horizontal, 25)
         }
     }
 
