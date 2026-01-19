@@ -414,6 +414,73 @@ struct PlayPage: View {
 }
 
 
+// MARK: - 5. 子组件
+struct DaySelectionButton: View {
+    let title: String
+    @State private var isSelected: Bool = false
+    
+    var body: some View {
+        Button(action: { isSelected.toggle() }) {
+            Text(title)
+                .font(.system(size: 16, weight: .medium))
+                .foregroundColor(.white)
+                .frame(width: 44, height: 44)
+                .background(Color.white.opacity(0.1))
+                .cornerRadius(8)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color.white, lineWidth: isSelected ? 2 : 0)
+                )
+        }
+    }
+}
 
+struct CapsuleToolButton: View {
+    var icon: String; var title: String; var isOn: Bool = false; var action: () -> Void
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Image(systemName: icon).font(.system(size: 14))
+                Text(title).font(.system(size: 13, weight: .medium))
+            }
+            .foregroundColor(isOn ? .white : .white.opacity(0.7))
+            .padding(.horizontal, 16).frame(height: 42)
+            .background(isOn ? Color.white.opacity(0.15) : Color.clear)
+            .overlay(Capsule().stroke(Color.white.opacity(isOn ? 0.4 : 0.15), lineWidth: 1))
+        }
+        .contentShape(Capsule())
+    }
+}
+
+struct ControlIconGlass: View {
+    var icon: String; var isMain: Bool = false
+    var body: some View {
+        ZStack {
+            Circle().fill(Color.white.opacity(0.1))
+            Image(systemName: icon).font(.system(size: isMain ? 22 : 16, weight: .bold)).foregroundColor(.white)
+        }.frame(width: isMain ? 65 : 52, height: isMain ? 65 : 52)
+         .overlay(Circle().stroke(Color.white.opacity(0.15), lineWidth: 0.5))
+    }
+}
+
+struct TabButton: View {
+    var title: String; var isSelected: Bool; var action: () -> Void
+    var body: some View {
+        Button(action: action) {
+            Text(title).font(.system(size: 14, weight: isSelected ? .bold : .medium))
+                .foregroundColor(isSelected ? .white : .white.opacity(0.4))
+                .frame(maxWidth: .infinity).frame(height: 55)
+                .glassStyle(opacity: isSelected ? 0.25 : 0.08, cornerRadius: 18)
+        }.contentShape(Rectangle())
+    }
+}
+
+struct SquareIconButton: View {
+    var icon: String
+    var body: some View {
+        Image(systemName: icon).font(.system(size: 35)).foregroundColor(.white)
+            .frame(width: 85, height: 85).glassStyle(opacity: 0.1, cornerRadius: 18)
+    }
+}
 // 其余 UI 组件 (InfoOverlayView, DaySelectionButton, CapsuleToolButton 等) 保持原样...
 // (为节省空间，此处省略与原代码完全一致的子组件定义)
