@@ -451,6 +451,49 @@ struct ContentView: View {
 import SwiftUI
 import Combine
 
+// MARK: - 1. 功能枚举
+enum ActiveOverlay: Identifiable {
+    case feedback, soundEdit, alarm, mix, routine
+    var id: Int { hashValue }
+}
+
+// MARK: - 2. 动效组件
+struct RippleCircle: View {
+    @State private var scale: CGFloat = 0.2
+    @State private var opacity: Double = 0.8
+    var delay: Double
+    var isAnimating: Bool
+    // 添加一个唯一的 ID 用于强制重置动画
+    var resetID: UUID
+    
+    var body: some View {
+        Circle()
+            .stroke(
+                LinearGradient(
+                    gradient: Gradient(colors: [Color.white.opacity(0.8), Color.white.opacity(0.0)]),
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                ),
+                lineWidth: 2
+            )
+            .scaleEffect(isAnimating ? scale : 0.2)
+            .opacity(isAnimating ? opacity : 0.0)
+            .id(resetID) // 关键：ID 改变时 View 会重新创建，从而重置动画状态
+            .onAppear { if isAnimating { startAnimation() } }
+    }
+    
+    private func startAnimation() {
+        // 先重置状态
+        scale = 0.2
+        opacity = 0.8
+        withAnimation(Animation.easeOut(duration: 3.0).delay(delay).repeatForever(autoreverses: false)) {
+            scale = 1.6
+            opacity = 0.0
+        }
+    }
+}
+
+
 // MARK: - 主页面
 struct PlayPage: View {
     @Binding var isPresented: Bool
@@ -513,7 +556,7 @@ struct PlayPage: View {
                     }
                     Image(systemName: "moon.stars.fill").font(.system(size: 80)).foregroundColor(.white.opacity(0.9))
                 }
-                .id(animationResetID) 
+                .id(animationResetID)
                 .frame(width: 250, height: 250)
                 
                 Spacer()
@@ -543,10 +586,10 @@ struct PlayPage: View {
                             
                             CapsuleToolButton(icon: "bubble.left", title: "反馈") { withAnimation { activeOverlay = .feedback } }
                             CapsuleToolButton(icon: "sparkles", title: "声音编辑") { withAnimation { activeOverlay = .soundEdit } }
-                            CapsuleToolButton(icon: "alarm", title: "闹钟") { 
+                            CapsuleToolButton(icon: "alarm", title: "闹钟") {
                                 // 打开闹钟时，让遮罩内的开关状态先同步工具栏当前的状态
-                                isBlockAppOn = isInterceptOn 
-                                withAnimation { activeOverlay = .alarm } 
+                                isBlockAppOn = isInterceptOn
+                                withAnimation { activeOverlay = .alarm }
                             }
                             CapsuleToolButton(icon: "hand.raised", title: "拦截", isOn: isInterceptOn) { isInterceptOn.toggle() }
                             CapsuleToolButton(icon: "waveform.path", title: "混合") { withAnimation { activeOverlay = .mix } }
@@ -564,9 +607,9 @@ struct PlayPage: View {
                             ControlIconGlass(icon: isPlaying ? "pause.fill" : "play.fill", isMain: true)
                         }.contentShape(Circle())
                         
-                        Button(action: { 
-                            isBlockAppOn = isInterceptOn 
-                            withAnimation { activeOverlay = .alarm } 
+                        Button(action: {
+                            isBlockAppOn = isInterceptOn
+                            withAnimation { activeOverlay = .alarm }
                         }) {
                             ControlIconGlass(icon: "timer")
                         }.contentShape(Circle())
@@ -706,7 +749,7 @@ struct PlayPage: View {
                     Button(action: {
                         // 【功能修复】：将遮罩内部的选中状态同步给工具栏
                         // 如果 isBlockAppOn 为 false，isInterceptOn 也会变为 false（熄灭）
-                        isInterceptOn = isBlockAppOn 
+                        isInterceptOn = isBlockAppOn
                         
                         startCountdown()
                         withAnimation { activeOverlay = nil }
