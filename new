@@ -1,4 +1,116 @@
+import SwiftUI
 
+
+
+// MARK: - 1. 颜色扩展
+
+extension Color {
+
+    init(hex: String) {
+
+        let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
+
+        var int: UInt64 = 0
+
+        Scanner(string: hex).scanHexInt64(&int)
+
+        let a, r, g, b: UInt64
+
+        switch hex.count {
+
+        case 6: (a, r, g, b) = (255, int >> 16, int >> 8 & 0xFF, int & 0xFF)
+
+        default: (a, r, g, b) = (255, 0, 0, 0)
+
+        }
+
+        self.init(.sRGB, red: Double(r) / 255, green: Double(g) / 255, blue: Double(b) / 255, opacity: Double(a) / 255)
+
+    }
+
+}
+
+
+
+// MARK: - 2. 形状工具
+
+struct RoundedCorner: Shape {
+
+    var radius: CGFloat = .infinity
+
+    var corners: UIRectCorner = .allCorners
+
+    func path(in rect: CGRect) -> Path {
+
+        let path = UIBezierPath(roundedRect: rect, byRoundingCorners: corners, cornerRadii: CGSize(width: radius, height: radius))
+
+        return Path(path.cgPath)
+
+    }
+
+}
+
+
+
+// MARK: - 3. 玻璃拟态样式修饰符
+
+struct GlassModifier: ViewModifier {
+
+    var cornerRadius: CGFloat
+
+    var opacity: Double
+
+    var showBorder: Bool
+
+    
+
+    func body(content: Content) -> some View {
+
+        content
+
+            .background(
+
+                ZStack {
+
+                    Color(hex: "0F0F0F").opacity(opacity)
+
+                    LinearGradient(stops: [
+
+                        .init(color: .white.opacity(0.12), location: 0),
+
+                        .init(color: .clear, location: 0.5)
+
+                    ], startPoint: .topLeading, endPoint: .bottomTrailing)
+
+                }
+
+            )
+
+            .cornerRadius(cornerRadius)
+
+            .overlay(
+
+                RoundedRectangle(cornerRadius: cornerRadius)
+
+                    .stroke(Color.white.opacity(showBorder ? 0.35 : 0.15), lineWidth: 0.5)
+
+            )
+
+    }
+
+}
+
+
+
+extension View {
+
+    func glassStyle(opacity: Double = 0.74, cornerRadius: CGFloat = 28, showBorder: Bool = false) -> some View {
+
+        self.modifier(GlassModifier(cornerRadius: cornerRadius, opacity: opacity, showBorder: showBorder))
+
+    }
+
+}
 
 
 import SwiftUI
