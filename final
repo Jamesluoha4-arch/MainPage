@@ -1,54 +1,13 @@
 import SwiftUI
 import Combine
 
-
-// MARK: - 2. 功能枚举
+// MARK: - 1. 功能枚举
 enum ActiveOverlay: Identifiable {
     case feedback, soundEdit, alarm, mix, routine
     var id: Int { hashValue }
 }
 
-// MARK: - 3. 动效组件库
-
-// 节奏模式：背景网格
-struct GridBackgroundView: View {
-    var body: some View {
-        GeometryReader { proxy in
-            Path { path in
-                let step: CGFloat = 30
-                for x in stride(from: 0, through: proxy.size.width, by: step) {
-                    path.move(to: CGPoint(x: x, y: 0))
-                    path.addLine(to: CGPoint(x: x, y: proxy.size.height))
-                }
-                for y in stride(from: 0, through: proxy.size.height, by: step) {
-                    path.move(to: CGPoint(x: 0, y: y))
-                    path.addLine(to: CGPoint(x: proxy.size.width, y: y))
-                }
-            }
-            .stroke(Color.white.opacity(0.05), lineWidth: 1)
-        }.ignoresSafeArea()
-    }
-}
-
-// 节奏模式：中心几何动效
-struct RhythmicGeometryView: View {
-    @State private var isPulsing = false
-    var body: some View {
-        ZStack {
-            ForEach(0..<4) { i in
-                RoundedRectangle(cornerRadius: 20)
-                    .stroke(Color.white.opacity(0.3), lineWidth: 2)
-                    .frame(width: 80 + CGFloat(i * 35), height: 80 + CGFloat(i * 35))
-                    .scaleEffect(isPulsing ? 1.1 : 0.9)
-                    .opacity(isPulsing ? 0.8 : 0.2)
-                    .animation(.easeInOut(duration: 0.5).repeatForever(autoreverses: true).delay(Double(i) * 0.1), value: isPulsing)
-            }
-        }
-        .onAppear { isPulsing = true }
-    }
-}
-
-// 白噪音：水波纹
+// MARK: - 2. 动效组件 (原有水波纹)
 struct RippleCircle: View {
     @State private var scale: CGFloat = 0.2
     @State private var opacity: Double = 0.8
@@ -58,7 +17,14 @@ struct RippleCircle: View {
     
     var body: some View {
         Circle()
-            .stroke(LinearGradient(gradient: Gradient(colors: [Color.white.opacity(0.8), Color.white.opacity(0.0)]), startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 2)
+            .stroke(
+                LinearGradient(
+                    gradient: Gradient(colors: [Color.white.opacity(0.8), Color.white.opacity(0.0)]),
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                ),
+                lineWidth: 2
+            )
             .scaleEffect(isAnimating ? scale : 0.2)
             .opacity(isAnimating ? opacity : 0.0)
             .id(resetID)
@@ -66,101 +32,122 @@ struct RippleCircle: View {
     }
     
     private func startAnimation() {
-        scale = 0.2; opacity = 0.8
+        scale = 0.2
+        opacity = 0.8
         withAnimation(Animation.easeOut(duration: 3.0).delay(delay).repeatForever(autoreverses: false)) {
-            scale = 1.6; opacity = 0.0
+            scale = 1.6
+            opacity = 0.0
         }
     }
 }
 
-// 自然音：粒子系统
+// MARK: - 3. 自然音粒子动效组件 (新增)
 struct ParticleSystemView: View {
     let count = 40
     let containerSize = CGSize(width: 300, height: 300)
+    
     var body: some View {
         ZStack {
             ForEach(0..<count, id: \.self) { i in
-                SingleParticleView(isColored: i < 20, containerSize: containerSize)
+                SingleParticleView(
+                    isColored: i < 20, // 20个彩色，20个白色
+                    containerSize: containerSize
+                )
             }
-        }.frame(width: containerSize.width, height: containerSize.height)
+        }
+        .frame(width: containerSize.width, height: containerSize.height)
     }
 }
 
 struct SingleParticleView: View {
     let isColored: Bool
     let containerSize: CGSize
+    
     @State private var position: CGPoint = .zero
     @State private var opacity: Double = Double.random(in: 0.2...0.6)
+    // 调大粒子缩放比例：基础尺寸从 8 开始随机缩放
     @State private var scale: CGFloat = CGFloat.random(in: 0.8...1.5)
+    
     let colorPool: [Color] = [.blue, .cyan, .mint, .indigo, .purple]
     
     var body: some View {
         Circle()
             .fill(isColored ? colorPool.randomElement()! : .white)
+            // 修改点：基础 frame 调大到 8x8 或 10x10
             .frame(width: 10, height: 10)
             .scaleEffect(scale)
-            .blur(radius: 0.5)
+            .blur(radius: 0.5) // 增加微弱模糊，让大粒子边缘更柔和
             .opacity(opacity)
             .position(position)
             .onAppear {
-                position = CGPoint(x: CGFloat.random(in: 0...containerSize.width), y: CGFloat.random(in: 0...containerSize.height))
+                position = CGPoint(
+                    x: CGFloat.random(in: 0...containerSize.width),
+                    y: CGFloat.random(in: 0...containerSize.height)
+                )
                 startFloating()
             }
     }
     
     private func startFloating() {
-        let duration = Double.random(in: 6.0...12.0)
+        let duration = Double.random(in: 6.0...12.0) // 粒子变大后，漂浮速度可以再慢一点更有质感
         withAnimation(.linear(duration: duration)) {
-            position = CGPoint(x: CGFloat.random(in: 0...containerSize.width), y: CGFloat.random(in: 0...containerSize.height))
+            position = CGPoint(
+                x: CGFloat.random(in: 0...containerSize.width),
+                y: CGFloat.random(in: 0...containerSize.height)
+            )
             opacity = Double.random(in: 0.2...0.7)
-            scale = CGFloat.random(in: 0.8...1.5)
+            scale = CGFloat.random(in: 0.8...1.5) // 在漂浮过程中也会产生大小的微细变化
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + duration) { startFloating() }
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + duration) {
+            startFloating()
+        }
     }
 }
 
-// MARK: - 4. 主页面
+// MARK: - 主页面
 struct PlayPage: View {
     @Binding var isPresented: Bool
     @State private var selectedTab: Int = 0
     @State private var innerDragOffset: CGFloat = 0
     @State private var isPlaying: Bool = true
     @State private var showInfoOverlay: Bool = false
+    
     @State private var activeOverlay: ActiveOverlay? = nil
-    
-    // 注意力集中专用状态
-    @State private var focusRounds: Int = 1
-    @State private var workDuration: Int = 25
-    @State private var breakDuration: Int = 5
-    
-    // 拦截与计时状态
     @State private var isInterceptOn: Bool = false
     @State private var isApplyingSound: Bool = false
     @State private var showSuccessIcon: Bool = false
+    
     @State private var alarmTime = Date()
-    @State private var countdownSeconds: Int = 0
+    @State private var isBlockAppOn: Bool = false
     @State private var isTimerActive: Bool = false
+    @State private var countdownSeconds: Int = 0
+    
     @State private var mixAudioEnabled: Bool = true
     @State private var animationResetID = UUID()
     
     let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     var body: some View {
+        
         ZStack(alignment: .bottom) {
             Color(hex: "050505").ignoresSafeArea()
-            
-            // 背景层：节奏模式显示网格
-            if selectedTab == 2 {
-                GridBackgroundView()
-            }
             
             VStack(spacing: 0) {
                 // Header
                 ZStack(alignment: .trailing) {
                     Capsule().fill(Color.white.opacity(0.3)).frame(width: 40, height: 5).frame(maxWidth: .infinity)
+                    
                     Button(action: { withAnimation(.spring()) { showInfoOverlay = true } }) {
-                        Image(systemName: "info.circle").resizable().frame(width: 24, height: 24).foregroundColor(.white)
-                    }.padding(.trailing, 25)
+                        Image(systemName: "info.circle")
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 24, height: 24)
+                            .foregroundColor(.white)
+                    }
+                    .frame(width: 50, height: 50)
+                    .contentShape(Rectangle())
+                    .padding(.trailing, 25)
                 }.padding(.top, 12)
                 
                 // Title Area
@@ -168,35 +155,41 @@ struct PlayPage: View {
                     Text(selectedTab == 0 ? "白噪音" : (selectedTab == 1 ? "自然之声" : "节奏"))
                         .font(.system(size: 28, weight: .bold)).foregroundColor(.white)
                     
-                    if selectedTab != 2 {
-                        Text(selectedTab == 1 ? "亲近自然，感受放松" : "夜间好梦")
-                            .font(.system(size: 14)).foregroundColor(.gray)
-                            .id("subtitle_\(selectedTab)")
-                            .transition(.opacity.combined(with: .move(edge: .top)))
-                    }
+                    // 修改点：根据 selectedTab 切换文本内容
+                    Text(selectedTab == 1 ? "亲近自然，感受放松" : "夜间好梦")
+                        .font(.system(size: 14))
+                        .foregroundColor(.gray)
+                        .id("subtitle_\(selectedTab)") // 确保切换时产生过渡
+                        .transition(.opacity.combined(with: .move(edge: .top)))
                 }
                 .padding(.top, 30)
                 .animation(.easeInOut, value: selectedTab)
                 
                 Spacer()
                 
-                // 中央动态展示区
+                // 中央区域：切换水波纹与粒子动效
                 ZStack {
-                    if selectedTab == 0 {
+                    if selectedTab == 1 {
+                        // 自然音：漂浮粒子动效
+                        ParticleSystemView()
+                            .transition(.opacity)
+                    } else {
+                        // 白噪音与节奏：月亮与水波纹
                         ZStack {
                             if isPlaying {
-                                ForEach(0..<3) { i in RippleCircle(delay: Double(i) * 1.0, isAnimating: isPlaying, resetID: animationResetID) }
+                                ForEach(0..<3) { i in
+                                    RippleCircle(delay: Double(i) * 1.0, isAnimating: isPlaying, resetID: animationResetID)
+                                }
                             }
-                            Image(systemName: "moon.stars.fill").font(.system(size: 80)).foregroundColor(.white.opacity(0.9))
+                            Image(systemName: "moon.stars.fill")
+                                .font(.system(size: 80))
+                                .foregroundColor(.white.opacity(0.9))
                         }
-                    } else if selectedTab == 1 {
-                        ParticleSystemView()
-                    } else {
-                        RhythmicGeometryView()
+                        .transition(.opacity)
                     }
                 }
+                .id(animationResetID) // 重置时强制刷新
                 .frame(width: 250, height: 250)
-                .id(animationResetID)
                 .animation(.easeInOut(duration: 0.6), value: selectedTab)
                 
                 Spacer()
@@ -209,6 +202,7 @@ struct PlayPage: View {
                         TabButton(title: "节奏", isSelected: selectedTab == 2) { selectedTab = 2 }
                     }.padding(.horizontal, 20)
                     
+                    // 横向工具栏
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 12) {
                             if countdownSeconds > 0 {
@@ -218,53 +212,75 @@ struct PlayPage: View {
                                         Text(formatTime(countdownSeconds))
                                     }
                                     .font(.system(size: 13, weight: .bold)).foregroundColor(.white)
-                                    .padding(.horizontal, 16).frame(height: 42).background(Color.blue.opacity(0.6)).cornerRadius(21)
-                                }
+                                    .padding(.horizontal, 16).frame(height: 42)
+                                    .background(Color.blue.opacity(0.6)).cornerRadius(21)
+                                }.contentShape(Capsule())
                             }
+                            
                             CapsuleToolButton(icon: "bubble.left", title: "反馈") { withAnimation { activeOverlay = .feedback } }
                             CapsuleToolButton(icon: "sparkles", title: "声音编辑") { withAnimation { activeOverlay = .soundEdit } }
-                            
-                            // 动态按钮逻辑
-                            if selectedTab == 2 {
-                                CapsuleToolButton(icon: "target", title: "注意力") { withAnimation { activeOverlay = .alarm } }
-                            } else {
-                                CapsuleToolButton(icon: "alarm", title: "闹钟") { withAnimation { activeOverlay = .alarm } }
+                            CapsuleToolButton(icon: "alarm", title: "闹钟") {
+                                isBlockAppOn = isInterceptOn
+                                withAnimation { activeOverlay = .alarm }
                             }
-                            
                             CapsuleToolButton(icon: "hand.raised", title: "拦截", isOn: isInterceptOn) { isInterceptOn.toggle() }
                             CapsuleToolButton(icon: "waveform.path", title: "混合") { withAnimation { activeOverlay = .mix } }
                         }.padding(.horizontal, 20)
                     }
                     
+                    // 主控制按钮
                     HStack(spacing: 30) {
-                        Button(action: { resetPlaybackAction() }) { ControlIconGlass(icon: "arrow.clockwise") }
-                        Button(action: { withAnimation { isPlaying.toggle() } }) { ControlIconGlass(icon: isPlaying ? "pause.fill" : "play.fill", isMain: true) }
-                        Button(action: { withAnimation { activeOverlay = .alarm } }) { ControlIconGlass(icon: "timer") }
-                        Button(action: { withAnimation { activeOverlay = .mix } }) { ControlIconGlass(icon: "airplayaudio") }
+                        Button(action: { resetPlaybackAction() }) {
+                            ControlIconGlass(icon: "arrow.clockwise")
+                        }.contentShape(Circle())
+                        
+                        Button(action: { withAnimation { isPlaying.toggle() } }) {
+                            ControlIconGlass(icon: isPlaying ? "pause.fill" : "play.fill", isMain: true)
+                        }.contentShape(Circle())
+                        
+                        Button(action: {
+                            isBlockAppOn = isInterceptOn
+                            withAnimation { activeOverlay = .alarm }
+                        }) {
+                            ControlIconGlass(icon: "timer")
+                        }.contentShape(Circle())
+                        
+                        Button(action: { withAnimation { activeOverlay = .mix } }) {
+                            ControlIconGlass(icon: "airplayaudio")
+                        }.contentShape(Circle())
                     }.padding(.bottom, 10)
                     
                     Button(action: {}) {
                         Text("发现").font(.system(size: 18, weight: .semibold)).foregroundColor(.white)
-                            .frame(maxWidth: .infinity).frame(height: 85).background(Color(hex: "0F0F0F").opacity(0.8))
+                            .frame(maxWidth: .infinity).frame(height: 85)
+                            .background(Color(hex: "0F0F0F").opacity(0.8))
                             .clipShape(RoundedCorner(radius: 40, corners: [.topLeft, .topRight]))
-                    }.padding(.bottom, -15)
+                    }.contentShape(Rectangle()).padding(.bottom, -15)
                 }
             }
             .blur(radius: (activeOverlay != nil || showInfoOverlay) ? 15 : 0)
             .offset(y: innerDragOffset)
             
-            // 遮罩图层渲染
+            // --- 浮窗图层 ---
             if let overlay = activeOverlay {
                 Color.black.opacity(0.6).ignoresSafeArea().onTapGesture { withAnimation { activeOverlay = nil } }
-                overlayContent(for: overlay).transition(.move(edge: .bottom)).zIndex(10)
+                overlayContent(for: overlay)
+                    .transition(.move(edge: .bottom))
+                    .zIndex(10)
             }
             
             if isApplyingSound { soundLoadingOverlay.zIndex(30) }
             
             if showInfoOverlay {
-                InfoOverlayView(onClose: { withAnimation { showInfoOverlay = false } }, showRoutineAction: {
-                    showInfoOverlay = false; withAnimation { activeOverlay = .routine }
-                }).transition(.move(edge: .bottom)).zIndex(100)
+                InfoOverlayView(
+                    onClose: { withAnimation { showInfoOverlay = false } },
+                    showRoutineAction: {
+                        showInfoOverlay = false
+                        withAnimation { activeOverlay = .routine }
+                    }
+                )
+                .transition(.move(edge: .bottom))
+                .zIndex(100)
             }
         }
         .gesture(DragGesture().onChanged { v in if v.translation.height > 0 { innerDragOffset = v.translation.height } }
@@ -272,85 +288,44 @@ struct PlayPage: View {
         .onReceive(timer) { _ in updateCountdown() }
     }
 
-    // MARK: - 5. 遮罩视图内容切换
     @ViewBuilder
     private func overlayContent(for item: ActiveOverlay) -> some View {
         switch item {
-        case .alarm:
-            if selectedTab == 2 { attentionView } else { alarmFullScreenView }
         case .feedback: feedbackView
         case .soundEdit: soundEditView
+        case .alarm: alarmFullScreenView
         case .mix: mixView
         case .routine: routineFullScreenView
         }
     }
 
-    // MARK: - 注意力集中遮罩 (核心新需求)
-    private var attentionView: some View {
-        ZStack {
-            Color.black.ignoresSafeArea()
-            VStack(spacing: 25) {
-                HStack {
-                    Text("注意力集中").font(.title2.bold()).foregroundColor(.white)
-                    Spacer()
-                    Button("完成") { withAnimation { activeOverlay = nil } }
-                        .foregroundColor(.white).font(.system(size: 16))
-                }.padding(.top, 20)
-                
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("做了什么").font(.system(size: 14)).foregroundColor(.gray)
-                    TextField("", text: .constant(""), prompt: Text("做了什么").foregroundColor(.gray.opacity(0.5)))
-                        .padding().background(Color.white.opacity(0.1)).cornerRadius(12).foregroundColor(.white)
-                }
-                
-                HStack(spacing: 15) {
-                    VStack(spacing: 8) {
-                        Text("工作时长").font(.caption).foregroundColor(.gray)
-                        Text("\(workDuration) min").font(.system(size: 18, weight: .bold)).foregroundColor(.white)
-                            .frame(maxWidth: .infinity).frame(height: 50).background(Color.white.opacity(0.05)).cornerRadius(12)
-                    }
-                    VStack(spacing: 8) {
-                        Text("短暂休息").font(.caption).foregroundColor(.gray)
-                        Text("\(breakDuration) min").font(.system(size: 18, weight: .bold)).foregroundColor(.white)
-                            .frame(maxWidth: .infinity).frame(height: 50).background(Color.white.opacity(0.05)).cornerRadius(12)
-                    }
-                }
-                
-                Spacer()
-                
-                VStack(spacing: 12) {
-                    HStack {
-                        Button(action: { if focusRounds > 1 { focusRounds -= 1 } }) {
-                            Image(systemName: "minus").foregroundColor(focusRounds == 1 ? .white.opacity(0.2) : .white)
-                        }.frame(width: 44, height: 44)
-                        Spacer()
-                        Text("回合：\(focusRounds)").font(.headline).foregroundColor(.white)
-                        Spacer()
-                        Button(action: { focusRounds += 1 }) {
-                            Image(systemName: "plus").foregroundColor(.white)
-                        }.frame(width: 44, height: 44)
-                    }
-                    .padding(.horizontal).frame(height: 60).background(Color.white.opacity(0.1)).cornerRadius(16)
-                    
-                    Button(action: { withAnimation { activeOverlay = nil } }) {
-                        Text("开始").font(.headline).foregroundColor(.black)
-                            .frame(maxWidth: .infinity).frame(height: 60).background(Color.white).cornerRadius(16)
-                    }
-                }.padding(.bottom, 30)
-            }.padding(.horizontal, 25)
+    private func resetPlaybackAction() {
+        isPlaying = true
+        withAnimation {
+            animationResetID = UUID()
+            countdownSeconds = 0
+            isTimerActive = false
         }
     }
 
-    // MARK: - 6. 其他辅助视图 (Feedback, SoundEdit, Alarm, etc.)
+    // --- 遮罩视图定义 ---
     private var feedbackView: some View {
         VStack(spacing: 20) {
             Text("声音反馈").font(.headline).foregroundColor(.white).padding(.top, 25)
-            HStack(spacing: 30) { SquareIconButton(icon: "face.smiling"); SquareIconButton(icon: "face.dashed") }
+            HStack(spacing: 30) {
+                SquareIconButton(icon: "face.smiling")
+                SquareIconButton(icon: "face.dashed")
+            }
             Spacer()
             Button(action: { withAnimation { activeOverlay = nil } }) {
-                Text("取消").frame(maxWidth: .infinity).frame(height: 50).background(Color.gray.opacity(0.3)).foregroundColor(.white).cornerRadius(25)
-            }.padding(.bottom, 35)
-        }.padding(.horizontal, 25).frame(height: 300).background(Color.black).clipShape(RoundedCorner(radius: 30, corners: [.topLeft, .topRight]))
+                Text("取消")
+                    .frame(maxWidth: .infinity).frame(height: 50)
+                    .background(Color.gray.opacity(0.3)).foregroundColor(.white).cornerRadius(25)
+            }
+            .contentShape(Rectangle())
+            .padding(.bottom, 35)
+        }
+        .padding(.horizontal, 25).frame(height: 300).background(Color.black).clipShape(RoundedCorner(radius: 30, corners: [.topLeft, .topRight]))
     }
 
     private var soundEditView: some View {
@@ -358,13 +333,20 @@ struct PlayPage: View {
             Text("声音编辑").font(.title3.bold()).foregroundColor(.white)
             TextField("", text: .constant(""), prompt: Text("描述你想听到的声音...").foregroundColor(.gray))
                 .padding().background(Color.white.opacity(0.1)).cornerRadius(12).foregroundColor(.white)
+            
             Button(action: { startApplySoundAnimation() }) {
-                Text("应用").font(.headline).foregroundColor(.black).frame(maxWidth: .infinity).frame(height: 50).background(Color.white).cornerRadius(12)
+                Text("应用").font(.headline).foregroundColor(.black)
+                    .frame(maxWidth: .infinity).frame(height: 50).background(Color.white).cornerRadius(12)
             }
+            .contentShape(Rectangle())
+            
             Button(action: { withAnimation { activeOverlay = nil } }) {
-                Text("取消").frame(maxWidth: .infinity).frame(height: 50).background(Color.gray.opacity(0.3)).foregroundColor(.white).cornerRadius(12)
+                Text("取消")
+                    .frame(maxWidth: .infinity).frame(height: 50).background(Color.gray.opacity(0.3)).foregroundColor(.white).cornerRadius(12)
             }
-        }.padding(25).frame(height: 400).background(Color.black).clipShape(RoundedCorner(radius: 30, corners: [.topLeft, .topRight]))
+            .contentShape(Rectangle())
+        }
+        .padding(25).frame(height: 400).background(Color.black).clipShape(RoundedCorner(radius: 30, corners: [.topLeft, .topRight]))
     }
 
     private var alarmFullScreenView: some View {
@@ -372,31 +354,80 @@ struct PlayPage: View {
             Color.black.ignoresSafeArea()
             VStack(alignment: .leading, spacing: 20) {
                 Text("智能闹钟").font(.title.bold()).foregroundColor(.white)
-                DatePicker("", selection: $alarmTime, displayedComponents: .hourAndMinute).datePickerStyle(.wheel).labelsHidden().colorInvert().colorMultiply(.white).frame(maxWidth: .infinity)
+                DatePicker("", selection: $alarmTime, displayedComponents: .hourAndMinute)
+                    .datePickerStyle(.wheel).labelsHidden().colorInvert().colorMultiply(.white).frame(maxWidth: .infinity)
                 Text("预计睡眠时间：\(calculateSleepTime())").font(.caption).foregroundColor(.gray)
-                Toggle("拦截干扰应用", isOn: $isInterceptOn).foregroundColor(.white).padding().background(Color.white.opacity(0.1)).cornerRadius(12)
+                
+                Toggle("拦截干扰应用", isOn: $isBlockAppOn)
+                    .foregroundColor(.white)
+                    .padding()
+                    .background(Color.white.opacity(0.1))
+                    .cornerRadius(12)
+                
                 Spacer()
                 HStack(spacing: 15) {
-                    Button(action: { withAnimation { activeOverlay = nil } }) { Text("取消").frame(maxWidth: .infinity).frame(height: 55).background(Color.gray.opacity(0.3)).cornerRadius(15).foregroundColor(.white) }
-                    Button(action: { startCountdown(); withAnimation { activeOverlay = nil } }) { Text("确认").frame(maxWidth: .infinity).frame(height: 55).background(Color.white).cornerRadius(15).foregroundColor(.black) }
+                    Button(action: { withAnimation { activeOverlay = nil } }) {
+                        Text("取消").frame(maxWidth: .infinity).frame(height: 55).background(Color.gray.opacity(0.3)).cornerRadius(15).foregroundColor(.white)
+                    }.contentShape(Rectangle())
+                    
+                    Button(action: {
+                        isInterceptOn = isBlockAppOn
+                        startCountdown()
+                        withAnimation { activeOverlay = nil }
+                    }) {
+                        Text("确认").frame(maxWidth: .infinity).frame(height: 55).background(Color.white).cornerRadius(15).foregroundColor(.black)
+                    }.contentShape(Rectangle())
                 }
             }.padding(25)
+            
+            VStack {
+                HStack {
+                    Spacer()
+                    Button(action: { withAnimation { activeOverlay = nil } }) {
+                        Image(systemName: "xmark").font(.system(size: 20, weight: .bold)).foregroundColor(.white)
+                            .padding(12).background(Color.white.opacity(0.1)).clipShape(Circle())
+                    }.padding(25)
+                }
+                Spacer()
+            }
         }
     }
 
     private var mixView: some View {
         VStack(alignment: .leading, spacing: 20) {
-            HStack { Text("AirPlay").font(.headline); Spacer(); Image(systemName: "airplayaudio") }.foregroundColor(.white)
-            Divider().background(Color.white.opacity(0.2))
             HStack {
-                VStack(alignment: .leading, spacing: 4) { Text("播放").font(.system(size: 14)).foregroundColor(.gray); Text("混合音频").font(.system(size: 18, weight: .bold)).foregroundColor(.white) }
-                Spacer(); Toggle("", isOn: $mixAudioEnabled).labelsHidden()
+                Text("AirPlay").font(.headline)
+                Spacer()
+                Image(systemName: "airplayaudio")
+            }.foregroundColor(.white)
+            
+            Divider().background(Color.white.opacity(0.2))
+            
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("播放").font(.system(size: 14)).foregroundColor(.gray)
+                    Text("混合音频").font(.system(size: 18, weight: .bold)).foregroundColor(.white)
+                }
+                Spacer()
+                Toggle("", isOn: $mixAudioEnabled)
+                    .labelsHidden()
+                    .toggleStyle(SwitchToggleStyle(tint: .blue))
             }
+            .padding(.top, 5)
+            
             Text("混合音频开启时，背景声音将持续播放").font(.caption).foregroundColor(.gray)
-            Button(action: { withAnimation { activeOverlay = nil } }) { Text("完成").frame(maxWidth: .infinity).frame(height: 50).background(Color.gray.opacity(0.3)).foregroundColor(.white).cornerRadius(25) }
-        }.padding(25).frame(height: 350).background(Color.black).clipShape(RoundedCorner(radius: 30, corners: [.topLeft, .topRight]))
+            
+            Button(action: { withAnimation { activeOverlay = nil } }) {
+                Text("完成")
+                    .frame(maxWidth: .infinity).frame(height: 50)
+                    .background(Color.gray.opacity(0.3)).foregroundColor(.white).cornerRadius(25)
+            }
+            .contentShape(Rectangle())
+            .padding(.top, 10)
+        }
+        .padding(25).frame(height: 350).background(Color.black).clipShape(RoundedCorner(radius: 30, corners: [.topLeft, .topRight]))
     }
-
+    
     private var routineFullScreenView: some View {
         ZStack {
             Color.black.ignoresSafeArea()
@@ -404,62 +435,173 @@ struct PlayPage: View {
                 Spacer().frame(height: 60)
                 Image(systemName: "bell.badge.fill").font(.system(size: 40)).foregroundColor(.white)
                 Text("例行活动").font(.system(size: 24, weight: .bold)).foregroundColor(.white)
-                DatePicker("", selection: $alarmTime, displayedComponents: .hourAndMinute).datePickerStyle(.wheel).labelsHidden().colorInvert().colorMultiply(.white).frame(maxWidth: .infinity)
-                HStack(spacing: 8) { ForEach(["一", "二", "三", "四", "五", "六", "日"], id: \.self) { day in DaySelectionButton(title: day) } }
+                Text("选择您想开始会话的时间。").font(.system(size: 16)).foregroundColor(.gray)
+                
+                DatePicker("", selection: $alarmTime, displayedComponents: .hourAndMinute)
+                    .datePickerStyle(.wheel).labelsHidden().colorInvert().colorMultiply(.white).frame(maxWidth: .infinity)
+                
+                HStack(spacing: 8) {
+                    ForEach(["一", "二", "三", "四", "五", "六", "日"], id: \.self) { day in
+                        DaySelectionButton(title: day)
+                    }
+                }.padding(.top, 10)
+                
+                Text("选择此例行活动的星期几").font(.system(size: 14)).foregroundColor(.gray)
                 Spacer()
+                
                 Button(action: { withAnimation { activeOverlay = nil } }) {
-                    Text("创建例行活动").font(.system(size: 18, weight: .bold)).foregroundColor(.white).frame(maxWidth: .infinity).frame(height: 56).background(Color.gray.opacity(0.3)).cornerRadius(16).overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.white, lineWidth: 1))
+                    Text("创建例行活动").font(.system(size: 18, weight: .bold)).foregroundColor(.white)
+                        .frame(maxWidth: .infinity).frame(height: 56)
+                        .background(Color.gray.opacity(0.3))
+                        .cornerRadius(16)
+                        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.white, lineWidth: 1))
                 }
-            }.padding(.horizontal, 25).padding(.bottom, 40)
+                .contentShape(Rectangle())
+                .padding(.horizontal, 25).padding(.bottom, 40)
+            }
+            
+            VStack {
+                HStack {
+                    Spacer()
+                    Button(action: { withAnimation { activeOverlay = nil } }) {
+                        Image(systemName: "xmark").font(.system(size: 20, weight: .bold)).foregroundColor(.white)
+                            .padding(12).background(Color.white.opacity(0.1)).clipShape(Circle())
+                    }.padding(25)
+                }
+                Spacer()
+            }
         }
     }
 
+    private func startApplySoundAnimation() {
+        activeOverlay = nil
+        withAnimation { isApplyingSound = true }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+            showSuccessIcon = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                withAnimation { isApplyingSound = false; showSuccessIcon = false }
+            }
+        }
+    }
+    
     private var soundLoadingOverlay: some View {
         ZStack {
             Color.black.opacity(0.85).ignoresSafeArea()
             VStack(spacing: 20) {
                 if showSuccessIcon { Image(systemName: "checkmark").font(.system(size: 40, weight: .bold)).foregroundColor(.white) }
                 else { ProgressView().progressViewStyle(CircularProgressViewStyle(tint: .white)).scaleEffect(2) }
-            }.frame(width: 150, height: 150).glassStyle(opacity: 0.2, cornerRadius: 24)
+            }
+            .frame(width: 150, height: 150)
+            .glassStyle(opacity: 0.2, cornerRadius: 24)
         }
     }
 
-    // MARK: - 7. 逻辑函数
-    private func resetPlaybackAction() { isPlaying = true; withAnimation { animationResetID = UUID(); countdownSeconds = 0; isTimerActive = false } }
-    private func calculateSleepTime() -> String { let diff = alarmTime.timeIntervalSinceNow; let s = Int(diff > 0 ? diff : diff + 86400); return "\(s / 3600)h \((s % 3600) / 60)m" }
-    private func startCountdown() { let diff = alarmTime.timeIntervalSinceNow; countdownSeconds = Int(diff > 0 ? diff : diff + 86400); isTimerActive = true }
-    private func updateCountdown() { if isTimerActive && countdownSeconds > 0 { countdownSeconds -= 1; if countdownSeconds == 0 { isPlaying = false; isTimerActive = false } } }
-    private func formatTime(_ s: Int) -> String { String(format: "%02d:%02d:%02d", s / 3600, (s % 3600) / 60, s % 60) }
-    private func startApplySoundAnimation() { activeOverlay = nil; withAnimation { isApplyingSound = true }; DispatchQueue.main.asyncAfter(deadline: .now() + 2) { showSuccessIcon = true; DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { withAnimation { isApplyingSound = false; showSuccessIcon = false } } } }
+    private func calculateSleepTime() -> String {
+        let diff = alarmTime.timeIntervalSinceNow
+        let s = Int(diff > 0 ? diff : diff + 86400)
+        return "\(s / 3600)h \((s % 3600) / 60)m"
+    }
+    
+    private func startCountdown() {
+        let diff = alarmTime.timeIntervalSinceNow
+        countdownSeconds = Int(diff > 0 ? diff : diff + 86400)
+        isTimerActive = true
+    }
+    
+    private func updateCountdown() {
+        if isTimerActive && countdownSeconds > 0 {
+            countdownSeconds -= 1
+            if countdownSeconds == 0 { isPlaying = false; isTimerActive = false }
+        }
+    }
+    
+    private func formatTime(_ s: Int) -> String {
+        String(format: "%02d:%02d:%02d", s / 3600, (s % 3600) / 60, s % 60)
+    }
 }
 
-// MARK: - 8. 辅助小型组件
+// MARK: - 4. 信息详情页
 struct InfoOverlayView: View {
-    var onClose: () -> Void; var showRoutineAction: () -> Void
+    var onClose: () -> Void
+    var showRoutineAction: () -> Void
+    
     var body: some View {
         ZStack(alignment: .bottom) {
             Color.black.ignoresSafeArea()
-            ScrollView {
-                VStack(spacing: 40) {
-                    Text("白噪音").font(.system(size: 28, weight: .bold)).foregroundColor(.white).padding(.top, 60)
-                    Image(systemName: "waveform").resizable().frame(width: 150, height: 150).foregroundColor(.white)
-                    Text("利用声音的力量改善睡眠").foregroundColor(.gray)
-                    Text("白噪音通过覆盖环境中的突发噪音，营造平稳和谐的听觉背景。").font(.title3).foregroundColor(.white).padding()
+            
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(spacing: 0) {
+                    VStack(spacing: 8) {
+                        Text("白噪音").font(.system(size: 28, weight: .bold)).foregroundColor(.white)
+                        Text("夜间好梦").font(.system(size: 16)).foregroundColor(.gray)
+                    }.padding(.top, 60)
+                    
+                    Image(systemName: "waveform") // 替换为 white_icon
+                        .resizable().aspectRatio(contentMode: .fit)
+                        .frame(width: 180, height: 180).foregroundColor(.white).padding(.vertical, 40)
+                    
+                    Text("利用声音的力量改善睡眠").font(.system(size: 18)).foregroundColor(.white).padding(.bottom, 30)
+                    
+                    VStack(alignment: .leading, spacing: 25) {
+                        Divider().background(Color.gray.opacity(0.3))
+                        Text("白噪音").font(.system(size: 14)).foregroundColor(.gray)
+                        Text("白噪音通过覆盖环境中的突发噪音，营造平稳和谐的听觉背景。")
+                            .font(.system(size: 22, weight: .medium)).foregroundColor(.white).lineSpacing(8)
+                        
+                        Divider().background(Color.gray.opacity(0.3))
+                        Text("工作原理").font(.system(size: 14)).foregroundColor(.gray)
+                        Text("AI生成的白噪音利用精密算法模拟自然界声学特征...")
+                            .font(.system(size: 18)).foregroundColor(.gray).lineSpacing(6)
+                    }.padding(.horizontal, 30)
+                    
+                    Spacer(minLength: 220)
                 }
             }
-            VStack(spacing: 12) {
-                Button(action: onClose) { Text("开始").font(.headline).frame(maxWidth: .infinity).frame(height: 56).background(Color.white).foregroundColor(.black).cornerRadius(16) }
-                Button(action: showRoutineAction) { Text("例行活动").font(.headline).frame(maxWidth: .infinity).frame(height: 56).background(Color.gray.opacity(0.3)).foregroundColor(.white).cornerRadius(16) }
-            }.padding(25).background(Color.black)
+            .mask(LinearGradient(gradient: Gradient(stops: [.init(color: .clear, location: 0), .init(color: .black, location: 0.1), .init(color: .black, location: 0.85), .init(color: .clear, location: 1)]), startPoint: .top, endPoint: .bottom))
+            
+            VStack(spacing: 15) {
+                Button(action: onClose) {
+                    Text("开始").font(.system(size: 18, weight: .bold)).foregroundColor(.black)
+                        .frame(maxWidth: .infinity).frame(height: 56).background(Color.white).cornerRadius(16)
+                }.contentShape(Rectangle())
+                
+                Button(action: showRoutineAction) {
+                    Text("创建例行活动").font(.system(size: 18, weight: .bold)).foregroundColor(.white)
+                        .frame(maxWidth: .infinity).frame(height: 56).background(Color.gray.opacity(0.3)).cornerRadius(16)
+                }.contentShape(Rectangle())
+            }.padding(.horizontal, 25).padding(.bottom, 40).background(Color.black)
+            
+            VStack {
+                HStack {
+                    Spacer()
+                    Button(action: onClose) {
+                        Image(systemName: "xmark").font(.system(size: 20, weight: .bold)).foregroundColor(.white)
+                            .padding(12).background(Color.white.opacity(0.1)).clipShape(Circle())
+                    }.padding([.trailing, .top], 25)
+                }
+                Spacer()
+            }
         }
     }
 }
 
+// MARK: - 5. 子组件
 struct DaySelectionButton: View {
-    let title: String; @State private var isSelected = false
+    let title: String
+    @State private var isSelected: Bool = false
+    
     var body: some View {
         Button(action: { isSelected.toggle() }) {
-            Text(title).font(.system(size: 14)).foregroundColor(.white).frame(width: 40, height: 40).background(isSelected ? Color.blue : Color.white.opacity(0.1)).cornerRadius(8)
+            Text(title)
+                .font(.system(size: 16, weight: .medium))
+                .foregroundColor(.white)
+                .frame(width: 44, height: 44)
+                .background(Color.white.opacity(0.1))
+                .cornerRadius(8)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color.white, lineWidth: isSelected ? 2 : 0)
+                )
         }
     }
 }
@@ -472,9 +614,12 @@ struct CapsuleToolButton: View {
                 Image(systemName: icon).font(.system(size: 14))
                 Text(title).font(.system(size: 13, weight: .medium))
             }
-            .foregroundColor(.white).padding(.horizontal, 16).frame(height: 42)
-            .background(isOn ? Color.white.opacity(0.2) : Color.clear).overlay(Capsule().stroke(Color.white.opacity(0.2), lineWidth: 1))
+            .foregroundColor(isOn ? .white : .white.opacity(0.7))
+            .padding(.horizontal, 16).frame(height: 42)
+            .background(isOn ? Color.white.opacity(0.15) : Color.clear)
+            .overlay(Capsule().stroke(Color.white.opacity(isOn ? 0.4 : 0.15), lineWidth: 1))
         }
+        .contentShape(Capsule())
     }
 }
 
@@ -483,8 +628,9 @@ struct ControlIconGlass: View {
     var body: some View {
         ZStack {
             Circle().fill(Color.white.opacity(0.1))
-            Image(systemName: icon).font(.system(size: isMain ? 24 : 18)).foregroundColor(.white)
-        }.frame(width: isMain ? 64 : 52, height: isMain ? 64 : 52).overlay(Circle().stroke(Color.white.opacity(0.2)))
+            Image(systemName: icon).font(.system(size: isMain ? 22 : 16, weight: .bold)).foregroundColor(.white)
+        }.frame(width: isMain ? 65 : 52, height: isMain ? 65 : 52)
+         .overlay(Circle().stroke(Color.white.opacity(0.15), lineWidth: 0.5))
     }
 }
 
@@ -492,15 +638,20 @@ struct TabButton: View {
     var title: String; var isSelected: Bool; var action: () -> Void
     var body: some View {
         Button(action: action) {
-            Text(title).font(.system(size: 14, weight: isSelected ? .bold : .medium)).foregroundColor(isSelected ? .white : .gray)
-                .frame(maxWidth: .infinity).frame(height: 50).background(isSelected ? Color.white.opacity(0.1) : Color.clear).cornerRadius(15)
-        }
+            Text(title).font(.system(size: 14, weight: isSelected ? .bold : .medium))
+                .foregroundColor(isSelected ? .white : .white.opacity(0.4))
+                .frame(maxWidth: .infinity).frame(height: 55)
+                .glassStyle(opacity: isSelected ? 0.25 : 0.08, cornerRadius: 18)
+        }.contentShape(Rectangle())
     }
 }
 
 struct SquareIconButton: View {
     var icon: String
     var body: some View {
-        Image(systemName: icon).font(.system(size: 30)).foregroundColor(.white).frame(width: 80, height: 80).background(Color.white.opacity(0.1)).cornerRadius(20)
+        Image(systemName: icon).font(.system(size: 35)).foregroundColor(.white)
+            .frame(width: 85, height: 85).glassStyle(opacity: 0.1, cornerRadius: 18)
     }
 }
+
+
