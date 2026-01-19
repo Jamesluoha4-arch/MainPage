@@ -475,13 +475,13 @@ struct ContentView: View {
 import SwiftUI
 import Combine
 
-// MARK: - 功能枚举
+// MARK: - 1. 功能枚举
 enum ActiveOverlay: Identifiable {
     case feedback, soundEdit, alarm, mix, routine // 增加了 routine 状态
     var id: Int { hashValue }
 }
 
-// MARK: - 动效组件
+// MARK: - 2. 动效组件
 struct RippleCircle: View {
     @State private var scale: CGFloat = 0.2
     @State private var opacity: Double = 0.8
@@ -511,7 +511,7 @@ struct RippleCircle: View {
     }
 }
 
-// MARK: - 主页面
+// MARK: - 3. 主页面
 struct PlayPage: View {
     @Binding var isPresented: Bool
     @State private var selectedTab: Int = 0
@@ -540,10 +540,10 @@ struct PlayPage: View {
                     Capsule().fill(Color.white.opacity(0.3)).frame(width: 40, height: 5).frame(maxWidth: .infinity)
                     
                     Button(action: { withAnimation(.spring()) { showInfoOverlay = true } }) {
-                        Image("info_icon") 
+                        Image(systemName: "info.circle") // 替换为系统图标或确保资源库有 info_icon
                             .resizable()
                             .aspectRatio(contentMode: .fit)
-                            .frame(width: 32, height: 32)
+                            .frame(width: 24, height: 24)
                             .foregroundColor(.white)
                     }
                     .frame(width: 50, height: 50) 
@@ -608,7 +608,6 @@ struct PlayPage: View {
                             ControlIconGlass(icon: isPlaying ? "pause.fill" : "play.fill", isMain: true)
                         }.contentShape(Circle())
                         
-                        // 修改：闹钟图标点击触发闹钟遮罩
                         Button(action: { withAnimation { activeOverlay = .alarm } }) {
                             ControlIconGlass(icon: "timer")
                         }.contentShape(Circle())
@@ -638,7 +637,6 @@ struct PlayPage: View {
             if isApplyingSound { soundLoadingOverlay.zIndex(30) }
             
             if showInfoOverlay {
-                // 修改：传入 showRoutineAction 闭包
                 InfoOverlayView(
                     onClose: { withAnimation { showInfoOverlay = false } },
                     showRoutineAction: { 
@@ -662,7 +660,7 @@ struct PlayPage: View {
         case .soundEdit: soundEditView
         case .alarm: alarmFullScreenView
         case .mix: mixView
-        case .routine: routineFullScreenView // 增加例行活动
+        case .routine: routineFullScreenView
         }
     }
 
@@ -729,7 +727,6 @@ struct PlayPage: View {
                 }
             }.padding(25)
             
-            // 右上角关闭图标
             VStack {
                 HStack {
                     Spacer()
@@ -758,23 +755,18 @@ struct PlayPage: View {
         .padding(25).frame(height: 280).background(Color.black).clipShape(RoundedCorner(radius: 30, corners: [.topLeft, .topRight]))
     }
     
-    // --- 新增：例行活动全屏遮罩 ---
     private var routineFullScreenView: some View {
         ZStack {
             Color.black.ignoresSafeArea()
             VStack(spacing: 20) {
                 Spacer().frame(height: 60)
-                
                 Image(systemName: "bell.badge.fill").font(.system(size: 40)).foregroundColor(.white)
-                
                 Text("例行活动").font(.system(size: 24, weight: .bold)).foregroundColor(.white)
-                
                 Text("选择您想开始会话的时间。").font(.system(size: 16)).foregroundColor(.gray)
                 
                 DatePicker("", selection: $alarmTime, displayedComponents: .hourAndMinute)
                     .datePickerStyle(.wheel).labelsHidden().colorInvert().colorMultiply(.white).frame(maxWidth: .infinity)
                 
-                // 七个横向排列的周期按钮
                 HStack(spacing: 8) {
                     ForEach(["一", "二", "三", "四", "五", "六", "日"], id: \.self) { day in
                         DaySelectionButton(title: day)
@@ -782,7 +774,6 @@ struct PlayPage: View {
                 }.padding(.top, 10)
                 
                 Text("选择此例行活动的星期几").font(.system(size: 14)).foregroundColor(.gray)
-                
                 Spacer()
                 
                 Button(action: { withAnimation { activeOverlay = nil } }) {
@@ -796,7 +787,6 @@ struct PlayPage: View {
                 .padding(.horizontal, 25).padding(.bottom, 40)
             }
             
-            // 右上角关闭图标
             VStack {
                 HStack {
                     Spacer()
@@ -858,10 +848,10 @@ struct PlayPage: View {
     }
 }
 
-// MARK: - 信息详情页
+// MARK: - 4. 信息详情页
 struct InfoOverlayView: View {
     var onClose: () -> Void
-    var showRoutineAction: () -> Void // 增加回调
+    var showRoutineAction: () -> Void
     
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -874,8 +864,9 @@ struct InfoOverlayView: View {
                         Text("夜间好梦").font(.system(size: 16)).foregroundColor(.gray)
                     }.padding(.top, 60)
                     
-                    Image("white_icon").resizable().aspectRatio(contentMode: .fit)
-                        .frame(width: 180, height: 180).padding(.vertical, 40)
+                    Image(systemName: "waveform") // 替换为 white_icon
+                        .resizable().aspectRatio(contentMode: .fit)
+                        .frame(width: 180, height: 180).foregroundColor(.white).padding(.vertical, 40)
                     
                     Text("利用声音的力量改善睡眠").font(.system(size: 18)).foregroundColor(.white).padding(.bottom, 30)
                     
@@ -896,22 +887,18 @@ struct InfoOverlayView: View {
             }
             .mask(LinearGradient(gradient: Gradient(stops: [.init(color: .clear, location: 0), .init(color: .black, location: 0.1), .init(color: .black, location: 0.85), .init(color: .clear, location: 1)]), startPoint: .top, endPoint: .bottom))
             
-            // 底部按钮
             VStack(spacing: 15) {
-                // 修改：点击关闭遮罩
                 Button(action: onClose) {
                     Text("开始").font(.system(size: 18, weight: .bold)).foregroundColor(.black)
                         .frame(maxWidth: .infinity).frame(height: 56).background(Color.white).cornerRadius(16)
                 }.contentShape(Rectangle())
                 
-                // 修改：点击触发创建例行活动
                 Button(action: showRoutineAction) {
                     Text("创建例行活动").font(.system(size: 18, weight: .bold)).foregroundColor(.white)
                         .frame(maxWidth: .infinity).frame(height: 56).background(Color.gray.opacity(0.3)).cornerRadius(16)
                 }.contentShape(Rectangle())
             }.padding(.horizontal, 25).padding(.bottom, 40).background(Color.black)
             
-            // 关闭按钮
             VStack {
                 HStack {
                     Spacer()
@@ -926,7 +913,7 @@ struct InfoOverlayView: View {
     }
 }
 
-// MARK: - 新增：周选择正方形按钮
+// MARK: - 5. 子组件
 struct DaySelectionButton: View {
     let title: String
     @State private var isSelected: Bool = false
@@ -947,7 +934,6 @@ struct DaySelectionButton: View {
     }
 }
 
-// MARK: - 子组件
 struct CapsuleToolButton: View {
     var icon: String; var title: String; var isOn: Bool = false; var action: () -> Void
     var body: some View {
