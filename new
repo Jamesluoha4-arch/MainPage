@@ -456,14 +456,12 @@ enum ActiveOverlay: Identifiable {
     var id: Int { hashValue }
 }
 
-// MARK: - 2. 动效组件
+// MARK: - 2. 动效组件 (修复重置后不播放问题)
 struct RippleCircle: View {
     @State private var scale: CGFloat = 0.2
     @State private var opacity: Double = 0.8
     var delay: Double
     var isAnimating: Bool
-    // 添加一个唯一的 ID 用于强制重置动画
-    var resetID: UUID
     
     var body: some View {
         Circle()
@@ -477,14 +475,17 @@ struct RippleCircle: View {
             )
             .scaleEffect(isAnimating ? scale : 0.2)
             .opacity(isAnimating ? opacity : 0.0)
-            .id(resetID) // 关键：ID 改变时 View 会重新创建，从而重置动画状态
-            .onAppear { if isAnimating { startAnimation() } }
+            .onAppear {
+                if isAnimating {
+                    // 强制重置状态以防重绘残留
+                    scale = 0.2
+                    opacity = 0.8
+                    startAnimation()
+                }
+            }
     }
     
     private func startAnimation() {
-        // 先重置状态
-        scale = 0.2
-        opacity = 0.8
         withAnimation(Animation.easeOut(duration: 3.0).delay(delay).repeatForever(autoreverses: false)) {
             scale = 1.6
             opacity = 0.0
@@ -501,19 +502,18 @@ struct PlayPage: View {
     @State private var showInfoOverlay: Bool = false
     
     @State private var activeOverlay: ActiveOverlay? = nil
-    @State private var isInterceptOn: Bool = false
+    @State private var isInterceptOn: Bool = false // 工具栏拦截状态
     @State private var isApplyingSound: Bool = false
     @State private var showSuccessIcon: Bool = false
     
     @State private var alarmTime = Date()
-    @State private var isBlockAppOn: Bool = false
+    @State private var isBlockAppOn: Bool = false // 闹钟遮罩内的拦截开关
     @State private var isTimerActive: Bool = false
     @State private var countdownSeconds: Int = 0
     
-    // --- 新增状态 ---
     @State private var mixAudioEnabled: Bool = true
-    @State private var animationResetID = UUID() // 用于重置重放逻辑
-    
+    @State private var animationResetID = UUID() // 关键：动效重置 ID
+
     let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     var body: some View {
@@ -546,16 +546,17 @@ struct PlayPage: View {
                 
                 Spacer()
                 
-                // 中央动画
+                // 中央动画 (使用 ID 绑定强制重置)
                 ZStack {
                     if isPlaying {
                         ForEach(0..<3) { i in 
-                            // 传入 resetID 确保点击重置时动画重新开始
-                            RippleCircle(delay: Double(i) * 1.0, isAnimating: isPlaying, resetID: animationResetID) 
+                            RippleCircle(delay: Double(i) * 1.0, isAnimating: isPlaying)
                         }
                     }
                     Image(systemName: "moon.stars.fill").font(.system(size: 80)).foregroundColor(.white.opacity(0.9))
-                }.frame(width: 250, height: 250)
+                }
+                .id(animationResetID) // 当 ID 变化时，整个 ZStack 会重新初始化并触发 onAppear
+                .frame(width: 250, height: 250)
                 
                 Spacer()
                 
@@ -585,7 +586,6 @@ struct PlayPage: View {
                             CapsuleToolButton(icon: "bubble.left", title: "反馈") { withAnimation { activeOverlay = .feedback } }
                             CapsuleToolButton(icon: "sparkles", title: "声音编辑") { withAnimation { activeOverlay = .soundEdit } }
                             CapsuleToolButton(icon: "alarm", title: "闹钟") { withAnimation { activeOverlay = .alarm } }
-                            // 拦截按钮：状态由 isInterceptOn 决定
                             CapsuleToolButton(icon: "hand.raised", title: "拦截", isOn: isInterceptOn) { isInterceptOn.toggle() }
                             CapsuleToolButton(icon: "waveform.path", title: "混合") { withAnimation { activeOverlay = .mix } }
                         }.padding(.horizontal, 20)
@@ -593,8 +593,14 @@ struct PlayPage: View {
                     
                     // 主控制按钮
                     HStack(spacing: 30) {
-                        // 重置图标：点击重置动效并隐藏工具栏计时器
-                        Button(action: { resetPlaybackAction() }) {
+                        // 重置按钮：重启动效，隐藏计时器
+                        Button(action: {
+                            withAnimation {
+                                animationResetID = UUID() // 刷新 ID 重新触发动画
+                                countdownSeconds = 0
+                                isTimerActive = false
+                            }
+                        }) {
                             ControlIconGlass(icon: "arrow.clockwise")
                         }.contentShape(Circle())
                         
@@ -606,7 +612,7 @@ struct PlayPage: View {
                             ControlIconGlass(icon: "timer")
                         }.contentShape(Circle())
                         
-                        // AirPlay 按钮：点击后出现和混合音频一样的遮罩
+                        // AirPlay 联动
                         Button(action: { withAnimation { activeOverlay = .mix } }) {
                             ControlIconGlass(icon: "airplayaudio")
                         }.contentShape(Circle())
@@ -623,7 +629,7 @@ struct PlayPage: View {
             .blur(radius: (activeOverlay != nil || showInfoOverlay) ? 15 : 0)
             .offset(y: innerDragOffset)
             
-            // --- 浮窗图层 ---
+            // --- 遮罩图层 ---
             if let overlay = activeOverlay {
                 Color.black.opacity(0.6).ignoresSafeArea().onTapGesture { withAnimation { activeOverlay = nil } }
                 overlayContent(for: overlay)
@@ -656,64 +662,12 @@ struct PlayPage: View {
         case .feedback: feedbackView
         case .soundEdit: soundEditView
         case .alarm: alarmFullScreenView
-        case .mix: mixView // 统一使用增强后的混合视图
+        case .mix: mixView
         case .routine: routineFullScreenView
         }
     }
 
-    // --- 逻辑函数 ---
-    
-    private func resetPlaybackAction() {
-        withAnimation {
-            // 1. 重置动效 ID 触发重新播放
-            animationResetID = UUID()
-            // 2. 如果工具栏有计时器，使其消失
-            countdownSeconds = 0
-            isTimerActive = false
-        }
-    }
-
     // --- 遮罩视图定义 ---
-    
-    private var feedbackView: some View {
-        VStack(spacing: 20) {
-            Text("声音反馈").font(.headline).foregroundColor(.white).padding(.top, 25)
-            HStack(spacing: 30) {
-                SquareIconButton(icon: "face.smiling")
-                SquareIconButton(icon: "face.dashed")
-            }
-            Spacer()
-            Button(action: { withAnimation { activeOverlay = nil } }) {
-                Text("取消")
-                    .frame(maxWidth: .infinity).frame(height: 50)
-                    .background(Color.gray.opacity(0.3)).foregroundColor(.white).cornerRadius(25)
-            }
-            .contentShape(Rectangle())
-            .padding(.bottom, 35)
-        }
-        .padding(.horizontal, 25).frame(height: 300).background(Color.black).clipShape(RoundedCorner(radius: 30, corners: [.topLeft, .topRight]))
-    }
-
-    private var soundEditView: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            Text("声音编辑").font(.title3.bold()).foregroundColor(.white)
-            TextField("", text: .constant(""), prompt: Text("描述你想听到的声音...").foregroundColor(.gray))
-                .padding().background(Color.white.opacity(0.1)).cornerRadius(12).foregroundColor(.white)
-            
-            Button(action: { startApplySoundAnimation() }) {
-                Text("应用").font(.headline).foregroundColor(.black)
-                    .frame(maxWidth: .infinity).frame(height: 50).background(Color.white).cornerRadius(12)
-            }
-            .contentShape(Rectangle())
-            
-            Button(action: { withAnimation { activeOverlay = nil } }) {
-                Text("取消")
-                    .frame(maxWidth: .infinity).frame(height: 50).background(Color.gray.opacity(0.3)).foregroundColor(.white).cornerRadius(12)
-            }
-            .contentShape(Rectangle())
-        }
-        .padding(25).frame(height: 400).background(Color.black).clipShape(RoundedCorner(radius: 30, corners: [.topLeft, .topRight]))
-    }
 
     private var alarmFullScreenView: some View {
         ZStack {
@@ -723,7 +677,10 @@ struct PlayPage: View {
                 DatePicker("", selection: $alarmTime, displayedComponents: .hourAndMinute)
                     .datePickerStyle(.wheel).labelsHidden().colorInvert().colorMultiply(.white).frame(maxWidth: .infinity)
                 Text("预计睡眠时间：\(calculateSleepTime())").font(.caption).foregroundColor(.gray)
-                Toggle("拦截干扰应用", isOn: $isBlockAppOn).foregroundColor(.white).padding().background(Color.white.opacity(0.1)).cornerRadius(12)
+                
+                Toggle("拦截干扰应用", isOn: $isBlockAppOn)
+                    .foregroundColor(.white).padding().background(Color.white.opacity(0.1)).cornerRadius(12)
+                
                 Spacer()
                 HStack(spacing: 15) {
                     Button(action: { withAnimation { activeOverlay = nil } }) {
@@ -731,8 +688,8 @@ struct PlayPage: View {
                     }.contentShape(Rectangle())
                     
                     Button(action: { 
-                        // 功能点：如果选择了“拦截干扰应用”，确认后工具栏拦截按钮变亮
-                        if isBlockAppOn { isInterceptOn = true }
+                        // 功能点修复：同步闹钟内的开关到工具栏拦截按钮
+                        isInterceptOn = isBlockAppOn 
                         startCountdown()
                         withAnimation { activeOverlay = nil } 
                     }) {
@@ -754,7 +711,6 @@ struct PlayPage: View {
         }
     }
 
-    // --- 修改后的混合/AirPlay 视图 ---
     private var mixView: some View {
         VStack(alignment: .leading, spacing: 20) {
             HStack { 
@@ -765,17 +721,14 @@ struct PlayPage: View {
             
             Divider().background(Color.white.opacity(0.2))
             
-            // 新增功能：分割线下方增加“播放”和“混合音频”以及开关
+            // 混合音频 UI
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("播放").font(.system(size: 14)).foregroundColor(.gray)
                     Text("混合音频").font(.system(size: 18, weight: .bold)).foregroundColor(.white)
                 }
                 Spacer()
-                // 右侧点击开关按钮
-                Toggle("", isOn: $mixAudioEnabled)
-                    .labelsHidden()
-                    .toggleStyle(SwitchToggleStyle(tint: .blue))
+                Toggle("", isOn: $mixAudioEnabled).labelsHidden().toggleStyle(SwitchToggleStyle(tint: .blue))
             }
             .padding(.top, 5)
             
@@ -790,7 +743,36 @@ struct PlayPage: View {
         }
         .padding(25).frame(height: 350).background(Color.black).clipShape(RoundedCorner(radius: 30, corners: [.topLeft, .topRight]))
     }
-    
+
+    // --- 其他辅助函数与视图 ---
+    private var feedbackView: some View {
+        VStack(spacing: 20) {
+            Text("声音反馈").font(.headline).foregroundColor(.white).padding(.top, 25)
+            HStack(spacing: 30) {
+                SquareIconButton(icon: "face.smiling")
+                SquareIconButton(icon: "face.dashed")
+            }
+            Spacer()
+            Button(action: { withAnimation { activeOverlay = nil } }) {
+                Text("取消").frame(maxWidth: .infinity).frame(height: 50).background(Color.gray.opacity(0.3)).foregroundColor(.white).cornerRadius(25)
+            }.padding(.bottom, 35)
+        }.padding(.horizontal, 25).frame(height: 300).background(Color.black).clipShape(RoundedCorner(radius: 30, corners: [.topLeft, .topRight]))
+    }
+
+    private var soundEditView: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            Text("声音编辑").font(.title3.bold()).foregroundColor(.white)
+            TextField("", text: .constant(""), prompt: Text("描述你想听到的声音...").foregroundColor(.gray))
+                .padding().background(Color.white.opacity(0.1)).cornerRadius(12).foregroundColor(.white)
+            Button(action: { startApplySoundAnimation() }) {
+                Text("应用").font(.headline).foregroundColor(.black).frame(maxWidth: .infinity).frame(height: 50).background(Color.white).cornerRadius(12)
+            }
+            Button(action: { withAnimation { activeOverlay = nil } }) {
+                Text("取消").frame(maxWidth: .infinity).frame(height: 50).background(Color.gray.opacity(0.3)).foregroundColor(.white).cornerRadius(12)
+            }
+        }.padding(25).frame(height: 400).background(Color.black).clipShape(RoundedCorner(radius: 30, corners: [.topLeft, .topRight]))
+    }
+
     private var routineFullScreenView: some View {
         ZStack {
             Color.black.ignoresSafeArea()
@@ -798,40 +780,16 @@ struct PlayPage: View {
                 Spacer().frame(height: 60)
                 Image(systemName: "bell.badge.fill").font(.system(size: 40)).foregroundColor(.white)
                 Text("例行活动").font(.system(size: 24, weight: .bold)).foregroundColor(.white)
-                Text("选择您想开始会话的时间。").font(.system(size: 16)).foregroundColor(.gray)
-                
-                DatePicker("", selection: $alarmTime, displayedComponents: .hourAndMinute)
-                    .datePickerStyle(.wheel).labelsHidden().colorInvert().colorMultiply(.white).frame(maxWidth: .infinity)
-                
+                DatePicker("", selection: $alarmTime, displayedComponents: .hourAndMinute).datePickerStyle(.wheel).labelsHidden().colorInvert().colorMultiply(.white).frame(maxWidth: .infinity)
                 HStack(spacing: 8) {
                     ForEach(["一", "二", "三", "四", "五", "六", "日"], id: \.self) { day in
                         DaySelectionButton(title: day)
                     }
-                }.padding(.top, 10)
-                
-                Text("选择此例行活动的星期几").font(.system(size: 14)).foregroundColor(.gray)
+                }
                 Spacer()
-                
                 Button(action: { withAnimation { activeOverlay = nil } }) {
-                    Text("创建例行活动").font(.system(size: 18, weight: .bold)).foregroundColor(.white)
-                        .frame(maxWidth: .infinity).frame(height: 56)
-                        .background(Color.gray.opacity(0.3))
-                        .cornerRadius(16)
-                        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.white, lineWidth: 1))
-                }
-                .contentShape(Rectangle())
-                .padding(.horizontal, 25).padding(.bottom, 40)
-            }
-            
-            VStack {
-                HStack {
-                    Spacer()
-                    Button(action: { withAnimation { activeOverlay = nil } }) {
-                        Image(systemName: "xmark").font(.system(size: 20, weight: .bold)).foregroundColor(.white)
-                            .padding(12).background(Color.white.opacity(0.1)).clipShape(Circle())
-                    }.padding(25)
-                }
-                Spacer()
+                    Text("创建例行活动").font(.system(size: 18, weight: .bold)).foregroundColor(.white).frame(maxWidth: .infinity).frame(height: 56).background(Color.gray.opacity(0.3)).cornerRadius(16).overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.white, lineWidth: 1))
+                }.padding(.horizontal, 25).padding(.bottom, 40)
             }
         }
     }
@@ -850,12 +808,10 @@ struct PlayPage: View {
     private var soundLoadingOverlay: some View {
         ZStack {
             Color.black.opacity(0.85).ignoresSafeArea()
-            VStack(spacing: 20) {
+            VStack {
                 if showSuccessIcon { Image(systemName: "checkmark").font(.system(size: 40, weight: .bold)).foregroundColor(.white) }
                 else { ProgressView().progressViewStyle(CircularProgressViewStyle(tint: .white)).scaleEffect(2) }
-            }
-            .frame(width: 150, height: 150)
-            .glassStyle(opacity: 0.2, cornerRadius: 24)
+            }.frame(width: 150, height: 150).glassStyle(opacity: 0.2, cornerRadius: 24)
         }
     }
 
@@ -883,88 +839,13 @@ struct PlayPage: View {
     }
 }
 
-// MARK: - 4. 信息详情页
-struct InfoOverlayView: View {
-    var onClose: () -> Void
-    var showRoutineAction: () -> Void
-    
-    var body: some View {
-        ZStack(alignment: .bottom) {
-            Color.black.ignoresSafeArea()
-            
-            ScrollView(.vertical, showsIndicators: false) {
-                VStack(spacing: 0) {
-                    VStack(spacing: 8) {
-                        Text("白噪音").font(.system(size: 28, weight: .bold)).foregroundColor(.white)
-                        Text("夜间好梦").font(.system(size: 16)).foregroundColor(.gray)
-                    }.padding(.top, 60)
-                    
-                    Image(systemName: "waveform") // 替换为 white_icon
-                        .resizable().aspectRatio(contentMode: .fit)
-                        .frame(width: 180, height: 180).foregroundColor(.white).padding(.vertical, 40)
-                    
-                    Text("利用声音的力量改善睡眠").font(.system(size: 18)).foregroundColor(.white).padding(.bottom, 30)
-                    
-                    VStack(alignment: .leading, spacing: 25) {
-                        Divider().background(Color.gray.opacity(0.3))
-                        Text("白噪音").font(.system(size: 14)).foregroundColor(.gray)
-                        Text("白噪音通过覆盖环境中的突发噪音，营造平稳和谐的听觉背景。")
-                            .font(.system(size: 22, weight: .medium)).foregroundColor(.white).lineSpacing(8)
-                        
-                        Divider().background(Color.gray.opacity(0.3))
-                        Text("工作原理").font(.system(size: 14)).foregroundColor(.gray)
-                        Text("AI生成的白噪音利用精密算法模拟自然界声学特征...")
-                            .font(.system(size: 18)).foregroundColor(.gray).lineSpacing(6)
-                    }.padding(.horizontal, 30)
-                    
-                    Spacer(minLength: 220)
-                }
-            }
-            .mask(LinearGradient(gradient: Gradient(stops: [.init(color: .clear, location: 0), .init(color: .black, location: 0.1), .init(color: .black, location: 0.85), .init(color: .clear, location: 1)]), startPoint: .top, endPoint: .bottom))
-            
-            VStack(spacing: 15) {
-                Button(action: onClose) {
-                    Text("开始").font(.system(size: 18, weight: .bold)).foregroundColor(.black)
-                        .frame(maxWidth: .infinity).frame(height: 56).background(Color.white).cornerRadius(16)
-                }.contentShape(Rectangle())
-                
-                Button(action: showRoutineAction) {
-                    Text("创建例行活动").font(.system(size: 18, weight: .bold)).foregroundColor(.white)
-                        .frame(maxWidth: .infinity).frame(height: 56).background(Color.gray.opacity(0.3)).cornerRadius(16)
-                }.contentShape(Rectangle())
-            }.padding(.horizontal, 25).padding(.bottom, 40).background(Color.black)
-            
-            VStack {
-                HStack {
-                    Spacer()
-                    Button(action: onClose) {
-                        Image(systemName: "xmark").font(.system(size: 20, weight: .bold)).foregroundColor(.white)
-                            .padding(12).background(Color.white.opacity(0.1)).clipShape(Circle())
-                    }.padding([.trailing, .top], 25)
-                }
-                Spacer()
-            }
-        }
-    }
-}
-
-// MARK: - 5. 子组件
+// MARK: - 5. 子组件定义 (需确保已定义)
 struct DaySelectionButton: View {
     let title: String
     @State private var isSelected: Bool = false
-    
     var body: some View {
         Button(action: { isSelected.toggle() }) {
-            Text(title)
-                .font(.system(size: 16, weight: .medium))
-                .foregroundColor(.white)
-                .frame(width: 44, height: 44)
-                .background(Color.white.opacity(0.1))
-                .cornerRadius(8)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color.white, lineWidth: isSelected ? 2 : 0)
-                )
+            Text(title).font(.system(size: 16, weight: .medium)).foregroundColor(.white).frame(width: 44, height: 44).background(Color.white.opacity(0.1)).cornerRadius(8).overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.white, lineWidth: isSelected ? 2 : 0))
         }
     }
 }
@@ -982,7 +863,6 @@ struct CapsuleToolButton: View {
             .background(isOn ? Color.white.opacity(0.15) : Color.clear)
             .overlay(Capsule().stroke(Color.white.opacity(isOn ? 0.4 : 0.15), lineWidth: 1))
         }
-        .contentShape(Capsule()) 
     }
 }
 
@@ -1005,7 +885,7 @@ struct TabButton: View {
                 .foregroundColor(isSelected ? .white : .white.opacity(0.4))
                 .frame(maxWidth: .infinity).frame(height: 55)
                 .glassStyle(opacity: isSelected ? 0.25 : 0.08, cornerRadius: 18)
-        }.contentShape(Rectangle())
+        }
     }
 }
 
