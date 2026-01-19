@@ -39,7 +39,7 @@ struct RhythmGeometryView: View {
     
     var body: some View {
         ZStack {
-            // 背景网格线
+            // 背景网格线 (保持不变)
             Canvas { context, size in
                 let step: CGFloat = 30
                 for x in stride(from: 0, through: size.width, by: step) {
@@ -60,24 +60,33 @@ struct RhythmGeometryView: View {
                     .rotationEffect(.degrees(beat ? 90 : 0))
             }
         }
-        .onAppear { updateAnimation() }
-        .onChange(of: isPlaying) { _ in updateAnimation() }
+        .onAppear { 
+            // 延迟一小下确保视图加载完成再触发动画
+            DispatchQueue.main.async {
+                updateAnimation() 
+            }
+        }
+        // 修正：使用 newValue 确保捕捉到变化
+        .onChange(of: isPlaying) { newValue in
+            updateAnimation()
+        }
     }
     
     private func updateAnimation() {
         if isPlaying {
+            // 启动循环动画
             withAnimation(Animation.easeInOut(duration: 2.0).repeatForever(autoreverses: true)) {
                 beat = true
             }
         } else {
-            // 停止时平滑恢复初始状态
-            withAnimation(.spring(response: 0.5, dampingFraction: 0.6)) {
+            // 关键：强制使用普通动画打断 repeatForever
+            // 哪怕 beat 已经是 false，这也会强制重置当前的动画层
+            withAnimation(.easeInOut(duration: 0.5)) {
                 beat = false
             }
         }
     }
 }
-
 // MARK: - 3. 主界面
 struct RhythmPlayPage: View {
     @Binding var isPresented: Bool
