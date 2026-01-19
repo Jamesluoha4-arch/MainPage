@@ -1,8 +1,9 @@
 import SwiftUI
 import Combine
 
-// MARK: - 1. 基础子组件
-struct TabButton: View {
+// MARK: - 1. 节奏页专用 UI 组件 (已重命名以避免冲突)
+
+struct RhythmTabButton: View {
     let title: String
     let isSelected: Bool
     let action: () -> Void
@@ -19,7 +20,7 @@ struct TabButton: View {
     }
 }
 
-struct CapsuleToolButton: View {
+struct RhythmCapsuleToolButton: View {
     let icon: String
     let title: String
     var isOn: Bool = false
@@ -40,7 +41,7 @@ struct CapsuleToolButton: View {
     }
 }
 
-struct ControlIconGlass: View {
+struct RhythmControlIconGlass: View {
     let icon: String
     var isMain: Bool = false
     var body: some View {
@@ -54,7 +55,7 @@ struct ControlIconGlass: View {
     }
 }
 
-struct SquareIconButton: View {
+struct RhythmSquareIconButton: View {
     let icon: String
     var body: some View {
         VStack {
@@ -90,14 +91,14 @@ struct RhythmBar: View {
 struct RhythmPlayPage: View {
     @Binding var isPresented: Bool
     
-    // 基础状态
+    // 状态管理
     @State private var selectedTab: Int = 2
     @State private var isPlaying: Bool = true
     @State private var innerDragOffset: CGFloat = 0
     @State private var activeOverlay: ActiveOverlay? = nil
     @State private var showInfoOverlay: Bool = false
     
-    // 逻辑状态 (你刚才问的那些)
+    // 核心逻辑变量
     @State private var countdownSeconds: Int = 0
     @State private var isTimerActive: Bool = false
     @State private var animationResetID = UUID()
@@ -152,12 +153,12 @@ struct RhythmPlayPage: View {
                 
                 Spacer()
 
-                // 底部控制面板
+                // 底部面板
                 VStack(spacing: 24) {
                     HStack(spacing: 12) {
-                        TabButton(title: "白噪音", isSelected: selectedTab == 0) { selectedTab = 0 }
-                        TabButton(title: "自然音", isSelected: selectedTab == 1) { selectedTab = 1 }
-                        TabButton(title: "节奏", isSelected: selectedTab == 2) { selectedTab = 2 }
+                        RhythmTabButton(title: "白噪音", isSelected: selectedTab == 0) { selectedTab = 0 }
+                        RhythmTabButton(title: "自然音", isSelected: selectedTab == 1) { selectedTab = 1 }
+                        RhythmTabButton(title: "节奏", isSelected: selectedTab == 2) { selectedTab = 2 }
                     }
 
                     ScrollView(.horizontal, showsIndicators: false) {
@@ -168,24 +169,24 @@ struct RhythmPlayPage: View {
                                     .font(.system(size: 13, weight: .bold)).foregroundColor(.white).padding(.horizontal, 16).frame(height: 42).background(Color.blue).cornerRadius(21)
                                 }
                             }
-                            CapsuleToolButton(icon: "brain.head.profile", title: "注意力") { withAnimation { activeOverlay = .alarm } }
-                            CapsuleToolButton(icon: "bubble.left", title: "反馈") { withAnimation { activeOverlay = .feedback } }
-                            CapsuleToolButton(icon: "sparkles", title: "声音编辑") { withAnimation { activeOverlay = .soundEdit } }
+                            RhythmCapsuleToolButton(icon: "brain.head.profile", title: "注意力") { withAnimation { activeOverlay = .alarm } }
+                            RhythmCapsuleToolButton(icon: "bubble.left", title: "反馈") { withAnimation { activeOverlay = .feedback } }
+                            RhythmCapsuleToolButton(icon: "sparkles", title: "声音编辑") { withAnimation { activeOverlay = .soundEdit } }
                         }.padding(.horizontal, 20)
                     }
 
                     HStack(spacing: 30) {
-                        Button(action: resetPlaybackAction) { ControlIconGlass(icon: "arrow.clockwise") }
-                        Button(action: { isPlaying.toggle() }) { ControlIconGlass(icon: isPlaying ? "pause.fill" : "play.fill", isMain: true) }
-                        Button(action: { withAnimation { activeOverlay = .alarm } }) { ControlIconGlass(icon: "timer") }
-                        Button(action: { withAnimation { activeOverlay = .mix } }) { ControlIconGlass(icon: "airplayaudio") }
+                        Button(action: resetPlaybackAction) { RhythmControlIconGlass(icon: "arrow.clockwise") }
+                        Button(action: { isPlaying.toggle() }) { RhythmControlIconGlass(icon: isPlaying ? "pause.fill" : "play.fill", isMain: true) }
+                        Button(action: { withAnimation { activeOverlay = .alarm } }) { RhythmControlIconGlass(icon: "timer") }
+                        Button(action: { withAnimation { activeOverlay = .mix } }) { RhythmControlIconGlass(icon: "airplayaudio") }
                     }.padding(.bottom, 30)
                 }
             }
             .blur(radius: (activeOverlay != nil || showInfoOverlay) ? 15 : 0)
             .offset(y: innerDragOffset)
 
-            // 浮层渲染
+            // 弹出遮罩逻辑
             if let overlay = activeOverlay {
                 Color.black.opacity(0.5).ignoresSafeArea().onTapGesture { withAnimation { activeOverlay = nil } }
                 overlayContent(for: overlay).transition(.move(edge: .bottom)).zIndex(10)
@@ -200,7 +201,7 @@ struct RhythmPlayPage: View {
             .onEnded { v in if v.translation.height > 150 { isPresented = false }; withAnimation { innerDragOffset = 0 } })
     }
 
-    // MARK: - 4. 逻辑函数 (你寻找的那些部分)
+    // MARK: - 4. 逻辑处理函数
     
     private func resetPlaybackAction() {
         isPlaying = true
@@ -212,7 +213,6 @@ struct RhythmPlayPage: View {
     }
 
     private func startCountdown() {
-        // 在节奏模式下，我们将 workDuration (分钟) 转为秒
         countdownSeconds = workDuration * 60
         isTimerActive = true
     }
@@ -249,7 +249,7 @@ struct RhythmPlayPage: View {
         }
     }
 
-    // MARK: - 5. 遮罩内容渲染
+    // MARK: - 5. 遮罩详细内容
     @ViewBuilder
     private func overlayContent(for item: ActiveOverlay) -> some View {
         switch item {
@@ -292,7 +292,7 @@ struct RhythmPlayPage: View {
     private var feedbackView: some View {
         VStack(spacing: 30) {
             Text("声音反馈").foregroundColor(.white).padding(.top, 20)
-            HStack(spacing: 30) { SquareIconButton(icon: "face.smiling"); SquareIconButton(icon: "face.dashed") }
+            HStack(spacing: 30) { RhythmSquareIconButton(icon: "face.smiling"); RhythmSquareIconButton(icon: "face.dashed") }
             Button("关闭") { withAnimation { activeOverlay = nil } }.foregroundColor(.gray).padding(.bottom, 30)
         }.frame(maxWidth: .infinity).background(Color.black).clipShape(RoundedCorner(radius: 30, corners: [.topLeft, .topRight]))
     }
