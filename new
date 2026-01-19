@@ -456,7 +456,7 @@ enum ActiveOverlay: Identifiable {
     var id: Int { hashValue }
 }
 
-// MARK: - 2. 动效组件 (修复重置后不播放问题)
+// MARK: - 2. 动效组件
 struct RippleCircle: View {
     @State private var scale: CGFloat = 0.2
     @State private var opacity: Double = 0.8
@@ -477,15 +477,15 @@ struct RippleCircle: View {
             .opacity(isAnimating ? opacity : 0.0)
             .onAppear {
                 if isAnimating {
-                    // 强制重置状态以防重绘残留
-                    scale = 0.2
-                    opacity = 0.8
                     startAnimation()
                 }
             }
     }
     
     private func startAnimation() {
+        // 显式初始化状态，确保重置后能续播
+        scale = 0.2
+        opacity = 0.8
         withAnimation(Animation.easeOut(duration: 3.0).delay(delay).repeatForever(autoreverses: false)) {
             scale = 1.6
             opacity = 0.0
@@ -507,12 +507,13 @@ struct PlayPage: View {
     @State private var showSuccessIcon: Bool = false
     
     @State private var alarmTime = Date()
-    @State private var isBlockAppOn: Bool = false // 闹钟遮罩内的拦截开关
+    @State private var isBlockAppOn: Bool = false // 闹钟遮罩内部开关
     @State private var isTimerActive: Bool = false
     @State private var countdownSeconds: Int = 0
     
+    // 新增状态
     @State private var mixAudioEnabled: Bool = true
-    @State private var animationResetID = UUID() // 关键：动效重置 ID
+    @State private var animationResetID = UUID() // 用于强制重启动效
 
     let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
@@ -521,7 +522,7 @@ struct PlayPage: View {
             Color(hex: "050505").ignoresSafeArea()
             
             VStack(spacing: 0) {
-                // Header
+                // MARK: Header
                 ZStack(alignment: .trailing) {
                     Capsule().fill(Color.white.opacity(0.3)).frame(width: 40, height: 5).frame(maxWidth: .infinity)
                     
@@ -537,7 +538,7 @@ struct PlayPage: View {
                     .padding(.trailing, 25)
                 }.padding(.top, 12)
                 
-                // Title Area
+                // MARK: Title Area
                 VStack(spacing: 8) {
                     Text(selectedTab == 0 ? "白噪音" : (selectedTab == 1 ? "自然之声" : "节奏"))
                         .font(.system(size: 28, weight: .bold)).foregroundColor(.white)
@@ -546,7 +547,7 @@ struct PlayPage: View {
                 
                 Spacer()
                 
-                // 中央动画 (使用 ID 绑定强制重置)
+                // MARK: 中央动画 (通过 ID 强制重置)
                 ZStack {
                     if isPlaying {
                         ForEach(0..<3) { i in 
@@ -555,12 +556,12 @@ struct PlayPage: View {
                     }
                     Image(systemName: "moon.stars.fill").font(.system(size: 80)).foregroundColor(.white.opacity(0.9))
                 }
-                .id(animationResetID) // 当 ID 变化时，整个 ZStack 会重新初始化并触发 onAppear
+                .id(animationResetID)
                 .frame(width: 250, height: 250)
                 
                 Spacer()
                 
-                // 底部控制面板
+                // MARK: 底部控制面板
                 VStack(spacing: 24) {
                     HStack(spacing: 12) {
                         TabButton(title: "白噪音", isSelected: selectedTab == 0) { selectedTab = 0 }
@@ -568,7 +569,7 @@ struct PlayPage: View {
                         TabButton(title: "节奏", isSelected: selectedTab == 2) { selectedTab = 2 }
                     }.padding(.horizontal, 20)
                     
-                    // 横向工具栏
+                    // 工具栏
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 12) {
                             if countdownSeconds > 0 {
@@ -591,19 +592,19 @@ struct PlayPage: View {
                         }.padding(.horizontal, 20)
                     }
                     
-                    // 主控制按钮
+                    // 主控制
                     HStack(spacing: 30) {
-                        // 重置按钮：重启动效，隐藏计时器
+                        // 重置图标
                         Button(action: {
                             withAnimation {
-                                animationResetID = UUID() // 刷新 ID 重新触发动画
-                                countdownSeconds = 0
-                                isTimerActive = false
+                                animationResetID = UUID() // 刷新 ID 使动效重启
+                                countdownSeconds = 0      // 计时器清零
+                                isTimerActive = false     // 计时器按钮消失
                             }
                         }) {
                             ControlIconGlass(icon: "arrow.clockwise")
                         }.contentShape(Circle())
-                        
+
                         Button(action: { withAnimation { isPlaying.toggle() } }) {
                             ControlIconGlass(icon: isPlaying ? "pause.fill" : "play.fill", isMain: true)
                         }.contentShape(Circle())
@@ -612,7 +613,7 @@ struct PlayPage: View {
                             ControlIconGlass(icon: "timer")
                         }.contentShape(Circle())
                         
-                        // AirPlay 联动
+                        // AirPlay 联动混合遮罩
                         Button(action: { withAnimation { activeOverlay = .mix } }) {
                             ControlIconGlass(icon: "airplayaudio")
                         }.contentShape(Circle())
@@ -667,7 +668,7 @@ struct PlayPage: View {
         }
     }
 
-    // --- 遮罩视图定义 ---
+    // MARK: - 遮罩视图定义
 
     private var alarmFullScreenView: some View {
         ZStack {
@@ -685,16 +686,16 @@ struct PlayPage: View {
                 HStack(spacing: 15) {
                     Button(action: { withAnimation { activeOverlay = nil } }) {
                         Text("取消").frame(maxWidth: .infinity).frame(height: 55).background(Color.gray.opacity(0.3)).cornerRadius(15).foregroundColor(.white)
-                    }.contentShape(Rectangle())
+                    }
                     
                     Button(action: { 
-                        // 功能点修复：同步闹钟内的开关到工具栏拦截按钮
+                        // 功能点：双向联动，确认时同步状态
                         isInterceptOn = isBlockAppOn 
                         startCountdown()
                         withAnimation { activeOverlay = nil } 
                     }) {
                         Text("确认").frame(maxWidth: .infinity).frame(height: 55).background(Color.white).cornerRadius(15).foregroundColor(.black)
-                    }.contentShape(Rectangle())
+                    }
                 }
             }.padding(25)
             
@@ -721,14 +722,16 @@ struct PlayPage: View {
             
             Divider().background(Color.white.opacity(0.2))
             
-            // 混合音频 UI
+            // 混合音频控制区
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("播放").font(.system(size: 14)).foregroundColor(.gray)
                     Text("混合音频").font(.system(size: 18, weight: .bold)).foregroundColor(.white)
                 }
                 Spacer()
-                Toggle("", isOn: $mixAudioEnabled).labelsHidden().toggleStyle(SwitchToggleStyle(tint: .blue))
+                Toggle("", isOn: $mixAudioEnabled)
+                    .labelsHidden()
+                    .toggleStyle(SwitchToggleStyle(tint: .blue))
             }
             .padding(.top, 5)
             
@@ -744,7 +747,6 @@ struct PlayPage: View {
         .padding(25).frame(height: 350).background(Color.black).clipShape(RoundedCorner(radius: 30, corners: [.topLeft, .topRight]))
     }
 
-    // --- 其他辅助函数与视图 ---
     private var feedbackView: some View {
         VStack(spacing: 20) {
             Text("声音反馈").font(.headline).foregroundColor(.white).padding(.top, 25)
@@ -794,6 +796,8 @@ struct PlayPage: View {
         }
     }
 
+    // MARK: - 辅助逻辑
+
     private func startApplySoundAnimation() {
         activeOverlay = nil
         withAnimation { isApplyingSound = true }
@@ -839,7 +843,8 @@ struct PlayPage: View {
     }
 }
 
-// MARK: - 5. 子组件定义 (需确保已定义)
+// MARK: - 子组件
+
 struct DaySelectionButton: View {
     let title: String
     @State private var isSelected: Bool = false
