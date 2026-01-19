@@ -515,20 +515,21 @@ struct SingleParticleView: View {
     
     @State private var position: CGPoint = .zero
     @State private var opacity: Double = Double.random(in: 0.2...0.6)
-    @State private var scale: CGFloat = CGFloat.random(in: 0.4...1.2)
+    // 调大粒子缩放比例：基础尺寸从 8 开始随机缩放
+    @State private var scale: CGFloat = CGFloat.random(in: 0.8...1.5)
     
-    // 彩色粒子池
     let colorPool: [Color] = [.blue, .cyan, .mint, .indigo, .purple]
     
     var body: some View {
         Circle()
             .fill(isColored ? colorPool.randomElement()! : .white)
-            .frame(width: 4, height: 4)
+            // 修改点：基础 frame 调大到 8x8 或 10x10
+            .frame(width: 10, height: 10) 
             .scaleEffect(scale)
+            .blur(radius: 0.5) // 增加微弱模糊，让大粒子边缘更柔和
             .opacity(opacity)
             .position(position)
             .onAppear {
-                // 初始位置随机
                 position = CGPoint(
                     x: CGFloat.random(in: 0...containerSize.width),
                     y: CGFloat.random(in: 0...containerSize.height)
@@ -538,16 +539,16 @@ struct SingleParticleView: View {
     }
     
     private func startFloating() {
-        let duration = Double.random(in: 4.0...9.0)
+        let duration = Double.random(in: 6.0...12.0) // 粒子变大后，漂浮速度可以再慢一点更有质感
         withAnimation(.linear(duration: duration)) {
             position = CGPoint(
                 x: CGFloat.random(in: 0...containerSize.width),
                 y: CGFloat.random(in: 0...containerSize.height)
             )
             opacity = Double.random(in: 0.2...0.7)
+            scale = CGFloat.random(in: 0.8...1.5) // 在漂浮过程中也会产生大小的微细变化
         }
         
-        // 持续递归漂浮
         DispatchQueue.main.asyncAfter(deadline: .now() + duration) {
             startFloating()
         }
