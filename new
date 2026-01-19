@@ -1,43 +1,51 @@
 import SwiftUI
 
-// MARK: - 1. 视觉样式扩展
+// MARK: - 1. 视觉样式扩展 (修复报错核心)
 extension View {
-    func glassStyle(opacity: Double, cornerRadius: CGFloat) -> some View {
+    /// 增强版毛玻璃样式：添加了默认参数以防止 "Missing argument" 报错
+    /// 同时也添加了冗余参数以兼容你代码中可能存在的旧调用 (showBorder, addFloatingEffect)
+    func glassStyle(
+        opacity: Double, 
+        cornerRadius: CGFloat = 18, 
+        showBorder: Bool = true, 
+        addFloatingEffect: Bool = false
+    ) -> some View {
         self.background(
             ZStack {
                 BlurView(style: .systemThinMaterialDark)
                     .opacity(opacity)
                 
-                RoundedRectangle(cornerRadius: cornerRadius)
-                    .stroke(
-                        LinearGradient(
-                            colors: [.white.opacity(0.2), .white.opacity(0.05)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        lineWidth: 0.5
-                    )
+                if showBorder {
+                    RoundedRectangle(cornerRadius: cornerRadius)
+                        .stroke(
+                            LinearGradient(
+                                colors: [.white.opacity(0.2), .white.opacity(0.05)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 0.5
+                        )
+                }
             }
         )
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
     }
 }
 
-// MARK: - 2. 毛玻璃底层实现
+// MARK: - 2. 系统毛玻璃底层
 struct BlurView: UIViewRepresentable {
     var style: UIBlurEffect.Style
     func makeUIView(context: Context) -> UIVisualEffectView {
-        return UIVisualEffectView(effect: UIBlurEffect(style: style))
+        return UIVisualEffectView(effect: style)
     }
     func updateUIView(_ uiView: UIVisualEffectView, context: Context) {}
 }
 
-// MARK: - 3. 自定义圆角形状 (严格匹配参数名)
+// MARK: - 3. 自定义圆角形状
 struct RoundedCorner: Shape {
     var radius: CGFloat
     var corners: UIRectCorner
 
-    // 显式定义初始化方法，防止 Xcode 自动生成的 Init 报错
     init(radius: CGFloat, corners: UIRectCorner) {
         self.radius = radius
         self.corners = corners
@@ -70,7 +78,7 @@ extension Color {
     }
 }
 
-// MARK: - 5. 全局复用组件
+// MARK: - 5. 基础 UI 组件
 struct TabButton: View {
     var title: String
     var isSelected: Bool
@@ -513,13 +521,13 @@ struct ContentView: View {
 import SwiftUI
 import Combine
 
-// MARK: - 枚举
+// MARK: - 状态枚举
 enum ActiveOverlay: Identifiable {
     case feedback, soundEdit, alarm, mix, routine
     var id: Int { hashValue }
 }
 
-// MARK: - 涟漪组件
+// MARK: - 动画组件
 struct RippleCircle: View {
     @State private var scale: CGFloat = 0.2
     @State private var opacity: Double = 0.8
@@ -576,16 +584,15 @@ struct PlayPage: View {
             Color(hex: "050505").ignoresSafeArea()
             
             VStack(spacing: 0) {
-                // Header
+                // Header指示器
                 ZStack(alignment: .trailing) {
                     Capsule().fill(Color.white.opacity(0.3)).frame(width: 40, height: 5).frame(maxWidth: .infinity)
                     Button(action: { withAnimation(.spring()) { showInfoOverlay = true } }) {
-                        Image(systemName: "info.circle")
-                            .resizable().aspectRatio(contentMode: .fit).frame(width: 24, height: 24).foregroundColor(.white)
-                    }
-                    .padding(.trailing, 25)
+                        Image(systemName: "info.circle").font(.system(size: 22)).foregroundColor(.white)
+                    }.padding(.trailing, 25)
                 }.padding(.top, 12)
                 
+                // 标题
                 VStack(spacing: 8) {
                     Text(selectedTab == 0 ? "白噪音" : (selectedTab == 1 ? "自然之声" : "节奏"))
                         .font(.system(size: 28, weight: .bold)).foregroundColor(.white)
@@ -594,6 +601,7 @@ struct PlayPage: View {
                 
                 Spacer()
                 
+                // 呼吸动画
                 ZStack {
                     if isPlaying {
                         ForEach(0..<3) { i in 
@@ -605,6 +613,7 @@ struct PlayPage: View {
                 
                 Spacer()
                 
+                // 底部控制
                 VStack(spacing: 24) {
                     HStack(spacing: 12) {
                         TabButton(title: "白噪音", isSelected: selectedTab == 0) { selectedTab = 0 }
@@ -659,6 +668,7 @@ struct PlayPage: View {
             .blur(radius: (activeOverlay != nil || showInfoOverlay) ? 15 : 0)
             .offset(y: innerDragOffset)
             
+            // 弹出层逻辑
             if let overlay = activeOverlay {
                 Color.black.opacity(0.6).ignoresSafeArea().onTapGesture { withAnimation { activeOverlay = nil } }
                 overlayContent(for: overlay)
@@ -689,6 +699,8 @@ struct PlayPage: View {
         case .routine: routineFullScreenView
         }
     }
+
+    // --- 各类弹出组件 (修正了 RoundedCorner 调用) ---
 
     private var mixView: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -774,14 +786,19 @@ struct PlayPage: View {
                 HStack(spacing: 8) { ForEach(["一", "二", "三", "四", "五", "六", "日"], id: \.self) { day in DaySelectionButton(title: day) } }
                 Spacer()
                 Button(action: { withAnimation { activeOverlay = nil } }) {
-                    Text("创建例行活动").font(.system(size: 18, weight: .bold)).foregroundColor(.white)
+                    Text("创建").font(.system(size: 18, weight: .bold)).foregroundColor(.white)
                         .frame(maxWidth: .infinity).frame(height: 56).background(Color.gray.opacity(0.3)).cornerRadius(16)
                         .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.white, lineWidth: 1))
                 }.padding(.horizontal, 25).padding(.bottom, 40)
             }
+            VStack {
+                HStack { Spacer(); Button(action: { activeOverlay = nil }) { Image(systemName: "xmark").padding().background(Color.white.opacity(0.1)).clipShape(Circle()) }.padding() }
+                Spacer()
+            }
         }
     }
 
+    // --- 逻辑函数 ---
     private func startApplySoundAnimation() {
         activeOverlay = nil
         withAnimation { isApplyingSound = true }
@@ -843,8 +860,7 @@ struct InfoOverlayView: View {
                     }.padding(.top, 60)
                     Circle().fill(Color.blue.opacity(0.3)).frame(width: 150, height: 150)
                         .overlay(Image(systemName: "waveform").font(.system(size: 60)).foregroundColor(.white))
-                    Text("白噪音通过覆盖环境中的突发噪音，营造平稳和谐的听觉背景，帮助您更快进入深度睡眠状态。")
-                        .font(.body).foregroundColor(.white).padding(.horizontal, 30).multilineTextAlignment(.center)
+                    Text("白噪音通过覆盖环境中的突发噪音，营造平稳和谐的听觉背景。").font(.body).foregroundColor(.white).padding(.horizontal, 30).multilineTextAlignment(.center)
                     Spacer(minLength: 200)
                 }
             }
