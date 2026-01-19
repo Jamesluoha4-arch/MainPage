@@ -1,6 +1,31 @@
 import SwiftUI
 import Combine
 
+// MARK: - 1. 基础工具类与扩展
+struct RoundedCorner: Shape {
+    var radius: CGFloat = .infinity
+    var corners: UIRectCorner = .allCorners
+    func path(in rect: CGRect) -> Path {
+        let path = UIBezierPath(roundedRect: rect, byRoundingCorners: corners, cornerRadii: CGSize(width: radius, height: radius))
+        return Path(path.cgPath)
+    }
+}
+
+extension Color {
+    init(hex: String) {
+        let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
+        var int: UInt64 = 0
+        Scanner(string: hex).scanHexInt64(&int)
+        let a, r, g, b: UInt64
+        switch hex.count {
+        case 3: (a, r, g, b) = (255, (int >> 8) * 17, (int >> 4 & 0xF) * 17, (int & 0xF) * 17)
+        case 6: (a, r, g, b) = (255, int >> 16, int >> 8 & 0xFF, int & 0xFF)
+        case 8: (a, r, g, b) = (int >> 24, int >> 16 & 0xFF, int >> 8 & 0xFF, int & 0xFF)
+        default: (a, r, g, b) = (1, 1, 1, 0)
+        }
+        self.init(.sRGB, red: Double(r) / 255, green: Double(g) / 255, blue: Double(b) / 255, opacity: Double(a) / 255)
+    }
+}
 
 enum ActiveOverlay: Identifiable {
     case feedback, soundEdit, alarm, mix, routine
@@ -14,7 +39,7 @@ struct RhythmGeometryView: View {
     
     var body: some View {
         ZStack {
-            // 背景网格
+            // 背景网格线
             Canvas { context, size in
                 let step: CGFloat = 30
                 for x in stride(from: 0, through: size.width, by: step) {
@@ -26,7 +51,7 @@ struct RhythmGeometryView: View {
             }
             .frame(width: 300, height: 300)
             
-            // 核心律动图形
+            // 核心几何律动
             ForEach(0..<3) { i in
                 RoundedRectangle(cornerRadius: beat ? 40 : 10)
                     .stroke(Color.white.opacity(0.8 - Double(i) * 0.2), lineWidth: 2)
@@ -45,24 +70,25 @@ struct RhythmGeometryView: View {
                 beat = true
             }
         } else {
-            withAnimation(.spring()) {
+            // 停止时平滑恢复初始状态
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.6)) {
                 beat = false
             }
         }
     }
 }
 
-// MARK: - 3. 主界面容器
+// MARK: - 3. 主界面
 struct RhythmPlayPage: View {
     @Binding var isPresented: Bool
-    @State private var selectedTab: Int = 2
-    @State private var isPlaying: Bool = true
+    @State private var selectedTab: Int = 2 // 默认为节奏
     @State private var innerDragOffset: CGFloat = 0
+    @State private var isPlaying: Bool = true // 初始状态为播放中
     @State private var showInfoOverlay: Bool = false
     @State private var activeOverlay: ActiveOverlay? = nil
     @State private var isInterceptOn: Bool = false
     
-    // 注意力数据
+    // 注意力遮罩状态
     @State private var taskName: String = ""
     @State private var workDuration: Int = 25
     @State private var breakDuration: Int = 5
@@ -76,9 +102,16 @@ struct RhythmPlayPage: View {
                 // Header
                 ZStack(alignment: .trailing) {
                     Capsule().fill(Color.white.opacity(0.3)).frame(width: 40, height: 5).frame(maxWidth: .infinity)
+                    
                     Button(action: { withAnimation(.spring()) { showInfoOverlay = true } }) {
-                        Image(systemName: "info.circle").font(.system(size: 24)).foregroundColor(.white)
-                    }.padding(.trailing, 25)
+                        Image(systemName: "info.circle")
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 24, height: 24)
+                            .foregroundColor(.white)
+                    }
+                    .frame(width: 50, height: 50)
+                    .padding(.trailing, 25)
                 }.padding(.top, 12)
                 
                 // Title Area
@@ -89,13 +122,13 @@ struct RhythmPlayPage: View {
                 
                 Spacer()
                 
-                // 动效区域
+                // 中央动效
                 RhythmGeometryView(isPlaying: isPlaying)
                     .frame(width: 300, height: 300)
                 
                 Spacer()
                 
-                // 控制面板
+                // 底部控制面板
                 VStack(spacing: 24) {
                     HStack(spacing: 12) {
                         TabButton(title: "白噪音", isSelected: selectedTab == 0) { selectedTab = 0 }
@@ -103,6 +136,7 @@ struct RhythmPlayPage: View {
                         TabButton(title: "节奏", isSelected: selectedTab == 2) { selectedTab = 2 }
                     }.padding(.horizontal, 20)
                     
+                    // 工具栏
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 12) {
                             CapsuleToolButton(icon: "brain.head.profile", title: "注意力") { withAnimation { activeOverlay = .alarm } }
@@ -113,11 +147,24 @@ struct RhythmPlayPage: View {
                         }.padding(.horizontal, 20)
                     }
                     
+                    // 主控制按钮
                     HStack(spacing: 30) {
-                        Button(action: { isPlaying = true }) { ControlIconGlass(icon: "arrow.clockwise") }
-                        Button(action: { withAnimation { isPlaying.toggle() } }) { ControlIconGlass(icon: isPlaying ? "pause.fill" : "play.fill", isMain: true) }
-                        Button(action: { withAnimation { activeOverlay = .alarm } }) { ControlIconGlass(icon: "timer") }
-                        Button(action: { withAnimation { activeOverlay = .mix } }) { ControlIconGlass(icon: "airplayaudio") }
+                        Button(action: { isPlaying = true }) {
+                            ControlIconGlass(icon: "arrow.clockwise")
+                        }
+                        
+                        // 初始为播放中，故显示暂停图标(pause.fill)表示“点击可暂停”
+                        Button(action: { withAnimation { isPlaying.toggle() } }) {
+                            ControlIconGlass(icon: isPlaying ? "pause.fill" : "play.fill", isMain: true)
+                        }
+                        
+                        Button(action: { withAnimation { activeOverlay = .alarm } }) {
+                            ControlIconGlass(icon: "timer")
+                        }
+                        
+                        Button(action: { withAnimation { activeOverlay = .mix } }) {
+                            ControlIconGlass(icon: "airplayaudio")
+                        }
                     }.padding(.bottom, 10)
                     
                     Button(action: {}) {
@@ -131,7 +178,7 @@ struct RhythmPlayPage: View {
             .blur(radius: (activeOverlay != nil || showInfoOverlay) ? 15 : 0)
             .offset(y: innerDragOffset)
             
-            // 浮层遮罩逻辑
+            // 浮窗图层
             if let overlay = activeOverlay {
                 Color.black.opacity(0.6).ignoresSafeArea().onTapGesture { withAnimation { activeOverlay = nil } }
                 overlayContent(for: overlay)
@@ -149,7 +196,6 @@ struct RhythmPlayPage: View {
             .onEnded { v in if v.translation.height > 150 { isPresented = false }; withAnimation { innerDragOffset = 0 } })
     }
 
-    // MARK: - 4. 动态遮罩内容
     @ViewBuilder
     private func overlayContent(for item: ActiveOverlay) -> some View {
         switch item {
@@ -160,8 +206,8 @@ struct RhythmPlayPage: View {
         case .routine: EmptyView()
         }
     }
-    
-    // --- 注意力设置遮罩 ---
+
+    // MARK: - 注意力集中设置遮罩
     private var focusSetupView: some View {
         VStack(spacing: 0) {
             HStack {
@@ -174,11 +220,9 @@ struct RhythmPlayPage: View {
             .padding(.horizontal, 25).padding(.top, 25)
             
             VStack(spacing: 24) {
-                // 任务输入
                 TextField("", text: $taskName, prompt: Text("做了什么").foregroundColor(.gray))
                     .padding().background(Color.white.opacity(0.1)).cornerRadius(12).foregroundColor(.white)
                 
-                // 时间选择 (自定义UI)
                 HStack(spacing: 15) {
                     VStack(alignment: .leading) {
                         Text("工作时长").font(.caption).foregroundColor(.gray)
@@ -195,7 +239,6 @@ struct RhythmPlayPage: View {
                     }.padding().background(Color.white.opacity(0.05)).cornerRadius(12)
                 }
                 
-                // 回合选择器
                 HStack {
                     Button(action: { if sessions > 1 { sessions -= 1 } }) {
                         Image(systemName: "minus.circle.fill").font(.title2)
@@ -210,7 +253,6 @@ struct RhythmPlayPage: View {
                 }
                 .padding().frame(height: 60).background(Color.white.opacity(0.1)).cornerRadius(16)
                 
-                // 开始按钮
                 Button(action: { withAnimation { activeOverlay = nil } }) {
                     Text("开始").font(.system(size: 18, weight: .bold)).foregroundColor(.black)
                         .frame(maxWidth: .infinity).frame(height: 56)
@@ -222,8 +264,7 @@ struct RhythmPlayPage: View {
         }
         .frame(height: 540).background(Color(hex: "0A0A0A")).clipShape(RoundedCorner(radius: 30, corners: [.topLeft, .topRight]))
     }
-    
-    // 其他复用的小遮罩
+
     private var feedbackView: some View {
         VStack {
             Text("声音反馈").font(.headline).foregroundColor(.white).padding(.top, 20)
@@ -233,7 +274,7 @@ struct RhythmPlayPage: View {
             }.padding(40)
         }.frame(maxWidth: .infinity, maxHeight: 200).background(Color.black).clipShape(RoundedCorner(radius: 30, corners: [.topLeft, .topRight]))
     }
-    
+
     private var soundEditView: some View {
         VStack(spacing: 20) {
             Text("声音编辑").font(.headline).foregroundColor(.white)
@@ -243,7 +284,7 @@ struct RhythmPlayPage: View {
                 .frame(maxWidth: .infinity).frame(height: 50).background(Color.white).foregroundColor(.black).cornerRadius(12)
         }.padding(25).frame(maxHeight: 300).background(Color.black).clipShape(RoundedCorner(radius: 30, corners: [.topLeft, .topRight]))
     }
-    
+
     private var mixView: some View {
         VStack(spacing: 20) {
             HStack { Text("混合音频").foregroundColor(.white); Spacer(); Toggle("", isOn: .constant(true)).labelsHidden() }
@@ -265,10 +306,10 @@ struct RhythmInfoOverlayView: View {
                         Text("工作时间集中注意力").font(.system(size: 16)).foregroundColor(.gray)
                     }.padding(.top, 60)
                     
-                    // 节奏示意图
+                    // 替换为带有工作元素的图标/占位
                     ZStack {
-                        Circle().stroke(Color.white.opacity(0.1), lineWidth: 1)
-                        Image(systemName: "timer").font(.system(size: 80)).foregroundColor(.white)
+                        RoundedRectangle(cornerRadius: 30).fill(Color.white.opacity(0.05))
+                        Image(systemName: "laptopcomputer.and.iphone").font(.system(size: 80)).foregroundColor(.white)
                     }.frame(width: 200, height: 200).padding(.vertical, 50)
                     
                     Text("节奏变化，快速进入状态").font(.system(size: 18)).foregroundColor(.white).padding(.bottom, 30)
@@ -281,7 +322,7 @@ struct RhythmInfoOverlayView: View {
                         
                         Divider().background(Color.white.opacity(0.2))
                         Text("原理").font(.system(size: 14)).foregroundColor(.gray)
-                        Text("利用双耳节拍技术模拟 Alpha 和 Beta 脑电波，在专注阶段提供稳定的背景支撑。").foregroundColor(.gray)
+                        Text("利用双耳节拍技术模拟脑电波，在专注阶段提供稳定的背景支撑。").foregroundColor(.gray)
                     }.padding(.horizontal, 30)
                     
                     Spacer(minLength: 150)
@@ -303,7 +344,7 @@ struct RhythmInfoOverlayView: View {
     }
 }
 
-// MARK: - 6. 复用的小组件
+// MARK: - 6. 辅助 UI 组件
 struct TabButton: View {
     let title: String; let isSelected: Bool; var action: () -> Void
     var body: some View {
@@ -334,9 +375,9 @@ struct ControlIconGlass: View {
     let icon: String; var isMain: Bool = false
     var body: some View {
         ZStack {
-            Circle().fill(Color.white.opacity(0.1)).blur(radius: 1)
-            Image(systemName: icon).font(.system(size: isMain ? 30 : 20, weight: .bold)).foregroundColor(.white)
-        }.frame(width: isMain ? 70 : 50, height: isMain ? 70 : 50)
+            Circle().fill(Color.white.opacity(0.1))
+            Image(systemName: icon).font(.system(size: isMain ? 28 : 20, weight: .bold)).foregroundColor(.white)
+        }.frame(width: isMain ? 74 : 54, height: isMain ? 74 : 54)
     }
 }
 更改这一段属于节奏的信息icon遮罩为信息icon点击后的遮罩内容改变，标题改为”节奏“，小标题为”工作时间集中注意力“，下方图片变成带有工作元素的图片，文字变成”节奏变化，快速进入状态“，分割线保留，下方灰色标题变为节奏，下方文字变为节奏的含义，其余元素保留。同时修改在工具栏中，闹钟按钮变成”注意力“按钮，点击后遮罩内容改变，新的遮罩内容为标题为”注意力集中“，下方是一个输入框，中间灰色字体”做了什么“。下方是一个时间选择，区别于现有时间UI bar，这个是选择两项内容，分别是”工作时长“以及”短暂休息"。底部分为两个长方形区域纵向排列，首先是回合选择器，区域左侧为减少icon，右侧为增加icon。中间内容为“回合：”后面跟着数字，数字受加减icon影响，用户点击增加icon数字增加，点击减少icon，数字减少。当数字为1时，减少icon变暗，代表不能继续减少。下方区域为白色按钮，内容为“开始”。点击区域可以回到播放界面。遮罩右上角有文字“完成”点击可以回到播放界面。其他元素保留，播放界面中间的图片可以删除。并给我完整代码
