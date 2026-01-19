@@ -326,6 +326,32 @@ struct PlayPage: View {
         .frame(height: 500).background(Color.black).clipShape(RoundedCorner(radius: 30, corners: [.topLeft, .topRight]))
     }
 
+// MARK: - 补全：声音应用加载遮罩
+    private var soundLoadingOverlay: some View {
+        ZStack {
+            // 半透明全屏背景
+            Color.black.opacity(0.85).ignoresSafeArea()
+            
+            VStack(spacing: 20) {
+                if showSuccessIcon {
+                    // 成功状态：显示对勾
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 40, weight: .bold))
+                        .foregroundColor(.white)
+                        .transition(.scale.combined(with: .opacity))
+                } else {
+                    // 加载状态：显示转圈
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        .scaleEffect(2)
+                }
+            }
+            .frame(width: 150, height: 150)
+            // 应用你已有的毛玻璃扩展样式
+            .glassStyle(opacity: 0.2, cornerRadius: 24)
+        }
+    }
+
     // --- 遮罩视图定义 (其余部分保持不变) ---
     private var feedbackView: some View {
         VStack(spacing: 20) {
