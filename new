@@ -452,7 +452,7 @@ import Combine
 
 // MARK: - 1. 功能枚举
 enum ActiveOverlay: Identifiable {
-    case feedback, soundEdit, alarm, mix, routine // 增加了 routine 状态
+    case feedback, soundEdit, alarm, mix, routine
     var id: Int { hashValue }
 }
 
@@ -462,6 +462,8 @@ struct RippleCircle: View {
     @State private var opacity: Double = 0.8
     var delay: Double
     var isAnimating: Bool
+    // 添加一个唯一的 ID 用于强制重置动画
+    var resetID: UUID
     
     var body: some View {
         Circle()
@@ -475,10 +477,14 @@ struct RippleCircle: View {
             )
             .scaleEffect(isAnimating ? scale : 0.2)
             .opacity(isAnimating ? opacity : 0.0)
+            .id(resetID) // 关键：ID 改变时 View 会重新创建，从而重置动画状态
             .onAppear { if isAnimating { startAnimation() } }
     }
     
     private func startAnimation() {
+        // 先重置状态
+        scale = 0.2
+        opacity = 0.8
         withAnimation(Animation.easeOut(duration: 3.0).delay(delay).repeatForever(autoreverses: false)) {
             scale = 1.6
             opacity = 0.0
@@ -503,6 +509,11 @@ struct PlayPage: View {
     @State private var isBlockAppOn: Bool = false
     @State private var isTimerActive: Bool = false
     @State private var countdownSeconds: Int = 0
+    
+    // --- 新增状态 ---
+    @State private var mixAudioEnabled: Bool = true
+    @State private var animationResetID = UUID() // 用于重置重放逻辑
+    
     let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     var body: some View {
@@ -515,7 +526,7 @@ struct PlayPage: View {
                     Capsule().fill(Color.white.opacity(0.3)).frame(width: 40, height: 5).frame(maxWidth: .infinity)
                     
                     Button(action: { withAnimation(.spring()) { showInfoOverlay = true } }) {
-                        Image(systemName: "info.circle") // 替换为系统图标或确保资源库有 info_icon
+                        Image(systemName: "info.circle")
                             .resizable()
                             .aspectRatio(contentMode: .fit)
                             .frame(width: 24, height: 24)
@@ -538,7 +549,10 @@ struct PlayPage: View {
                 // 中央动画
                 ZStack {
                     if isPlaying {
-                        ForEach(0..<3) { i in RippleCircle(delay: Double(i) * 1.0, isAnimating: isPlaying) }
+                        ForEach(0..<3) { i in 
+                            // 传入 resetID 确保点击重置时动画重新开始
+                            RippleCircle(delay: Double(i) * 1.0, isAnimating: isPlaying, resetID: animationResetID) 
+                        }
                     }
                     Image(systemName: "moon.stars.fill").font(.system(size: 80)).foregroundColor(.white.opacity(0.9))
                 }.frame(width: 250, height: 250)
@@ -571,6 +585,7 @@ struct PlayPage: View {
                             CapsuleToolButton(icon: "bubble.left", title: "反馈") { withAnimation { activeOverlay = .feedback } }
                             CapsuleToolButton(icon: "sparkles", title: "声音编辑") { withAnimation { activeOverlay = .soundEdit } }
                             CapsuleToolButton(icon: "alarm", title: "闹钟") { withAnimation { activeOverlay = .alarm } }
+                            // 拦截按钮：状态由 isInterceptOn 决定
                             CapsuleToolButton(icon: "hand.raised", title: "拦截", isOn: isInterceptOn) { isInterceptOn.toggle() }
                             CapsuleToolButton(icon: "waveform.path", title: "混合") { withAnimation { activeOverlay = .mix } }
                         }.padding(.horizontal, 20)
@@ -578,7 +593,11 @@ struct PlayPage: View {
                     
                     // 主控制按钮
                     HStack(spacing: 30) {
-                        ControlIconGlass(icon: "arrow.clockwise")
+                        // 重置图标：点击重置动效并隐藏工具栏计时器
+                        Button(action: { resetPlaybackAction() }) {
+                            ControlIconGlass(icon: "arrow.clockwise")
+                        }.contentShape(Circle())
+                        
                         Button(action: { withAnimation { isPlaying.toggle() } }) {
                             ControlIconGlass(icon: isPlaying ? "pause.fill" : "play.fill", isMain: true)
                         }.contentShape(Circle())
@@ -587,7 +606,10 @@ struct PlayPage: View {
                             ControlIconGlass(icon: "timer")
                         }.contentShape(Circle())
                         
-                        ControlIconGlass(icon: "airplayaudio")
+                        // AirPlay 按钮：点击后出现和混合音频一样的遮罩
+                        Button(action: { withAnimation { activeOverlay = .mix } }) {
+                            ControlIconGlass(icon: "airplayaudio")
+                        }.contentShape(Circle())
                     }.padding(.bottom, 10)
                     
                     Button(action: {}) {
@@ -634,8 +656,20 @@ struct PlayPage: View {
         case .feedback: feedbackView
         case .soundEdit: soundEditView
         case .alarm: alarmFullScreenView
-        case .mix: mixView
+        case .mix: mixView // 统一使用增强后的混合视图
         case .routine: routineFullScreenView
+        }
+    }
+
+    // --- 逻辑函数 ---
+    
+    private func resetPlaybackAction() {
+        withAnimation {
+            // 1. 重置动效 ID 触发重新播放
+            animationResetID = UUID()
+            // 2. 如果工具栏有计时器，使其消失
+            countdownSeconds = 0
+            isTimerActive = false
         }
     }
 
@@ -696,7 +730,12 @@ struct PlayPage: View {
                         Text("取消").frame(maxWidth: .infinity).frame(height: 55).background(Color.gray.opacity(0.3)).cornerRadius(15).foregroundColor(.white)
                     }.contentShape(Rectangle())
                     
-                    Button(action: { startCountdown(); withAnimation { activeOverlay = nil } }) {
+                    Button(action: { 
+                        // 功能点：如果选择了“拦截干扰应用”，确认后工具栏拦截按钮变亮
+                        if isBlockAppOn { isInterceptOn = true }
+                        startCountdown()
+                        withAnimation { activeOverlay = nil } 
+                    }) {
                         Text("确认").frame(maxWidth: .infinity).frame(height: 55).background(Color.white).cornerRadius(15).foregroundColor(.black)
                     }.contentShape(Rectangle())
                 }
@@ -715,11 +754,33 @@ struct PlayPage: View {
         }
     }
 
+    // --- 修改后的混合/AirPlay 视图 ---
     private var mixView: some View {
         VStack(alignment: .leading, spacing: 20) {
-            HStack { Text("AirPlay").font(.headline); Spacer(); Image(systemName: "airplayaudio") }.foregroundColor(.white)
+            HStack { 
+                Text("AirPlay").font(.headline)
+                Spacer()
+                Image(systemName: "airplayaudio") 
+            }.foregroundColor(.white)
+            
             Divider().background(Color.white.opacity(0.2))
+            
+            // 新增功能：分割线下方增加“播放”和“混合音频”以及开关
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("播放").font(.system(size: 14)).foregroundColor(.gray)
+                    Text("混合音频").font(.system(size: 18, weight: .bold)).foregroundColor(.white)
+                }
+                Spacer()
+                // 右侧点击开关按钮
+                Toggle("", isOn: $mixAudioEnabled)
+                    .labelsHidden()
+                    .toggleStyle(SwitchToggleStyle(tint: .blue))
+            }
+            .padding(.top, 5)
+            
             Text("混合音频开启时，背景声音将持续播放").font(.caption).foregroundColor(.gray)
+            
             Button(action: { withAnimation { activeOverlay = nil } }) {
                 Text("完成")
                     .frame(maxWidth: .infinity).frame(height: 50).background(Color.gray.opacity(0.3)).foregroundColor(.white).cornerRadius(25)
@@ -727,7 +788,7 @@ struct PlayPage: View {
             .contentShape(Rectangle())
             .padding(.top, 10)
         }
-        .padding(25).frame(height: 280).background(Color.black).clipShape(RoundedCorner(radius: 30, corners: [.topLeft, .topRight]))
+        .padding(25).frame(height: 350).background(Color.black).clipShape(RoundedCorner(radius: 30, corners: [.topLeft, .topRight]))
     }
     
     private var routineFullScreenView: some View {
@@ -775,7 +836,6 @@ struct PlayPage: View {
         }
     }
 
-    // --- 业务逻辑 ---
     private func startApplySoundAnimation() {
         activeOverlay = nil
         withAnimation { isApplyingSound = true }
