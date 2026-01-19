@@ -1,6 +1,6 @@
 import SwiftUI
 
-// 统一的十六进制颜色支持
+// MARK: - 1. 颜色扩展
 extension Color {
     init(hex: String) {
         let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
@@ -15,7 +15,7 @@ extension Color {
     }
 }
 
-// 统一的圆角工具
+// MARK: - 2. 形状工具
 struct RoundedCorner: Shape {
     var radius: CGFloat = .infinity
     var corners: UIRectCorner = .allCorners
@@ -25,64 +25,37 @@ struct RoundedCorner: Shape {
     }
 }
 
-import SwiftUI
-
-@main
-struct MainPageApp: App {
-    // 控制第二个界面（PlayPageView）是否显示的状态
-    @State private var isPlayPagePresented = false
-    // 记录下拉位移，用于动效反馈
-    @State private var dragOffset: CGFloat = 0
+// MARK: - 3. 玻璃拟态样式修饰符
+struct GlassModifier: ViewModifier {
+    var cornerRadius: CGFloat
+    var opacity: Double
+    var showBorder: Bool
     
-    var body: some Scene {
-        WindowGroup {
-            ZStack {
-                // --- 基础层：第一个界面 ---
-                ContentView()
-                    .offset(y: dragOffset > 0 ? dragOffset * 0.5 : 0) // 下拉时的跟随感
-                    .gesture(
-                        DragGesture()
-                            .onChanged { value in
-                                // 仅处理向下拉动
-                                if value.translation.height > 0 {
-                                    dragOffset = value.translation.height
-                                }
-                            }
-                            .onEnded { value in
-                                // 如果下拉超过阈值（如 120），触发跳转
-                                if value.translation.height > 120 {
-                                    isPlayPagePresented = true
-                                }
-                                // 无论是否跳转，松手后位移归零
-                                withAnimation(.spring()) {
-                                    dragOffset = 0
-                                }
-                            }
-                    )
-                
-                // --- 交互层：覆盖在 ContentView 上的 MiniBar 区域 ---
-                // 我们在这里放置一个透明的点击区域，覆盖在 ContentView 底部的 MiniBar 上
-                VStack {
-                    Spacer()
-                    Color.clear
-                        .frame(height: 100) // 与 MiniPlayerBar 高度匹配
-                        .contentShape(Rectangle()) 
-                        .onTapGesture {
-                            withAnimation(.spring()) {
-                                isPlayPagePresented = true
-                            }
-                        }
-                        .padding(.bottom, 20)
+    func body(content: Content) -> some View {
+        content
+            .background(
+                ZStack {
+                    Color(hex: "0F0F0F").opacity(opacity)
+                    LinearGradient(stops: [
+                        .init(color: .white.opacity(0.12), location: 0),
+                        .init(color: .clear, location: 0.5)
+                    ], startPoint: .topLeading, endPoint: .bottomTrailing)
                 }
-            }
-            // 使用 fullScreenCover 弹出第二个界面
-            .fullScreenCover(isPresented: $isPlayPagePresented) {
-                // 传入状态绑定，以便在 PlayPageView 内部可以关闭自己
-                PlayPageView(isPresented: $isPlayPagePresented)
-            }
-        }
+            )
+            .cornerRadius(cornerRadius)
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius)
+                    .stroke(Color.white.opacity(showBorder ? 0.35 : 0.15), lineWidth: 0.5)
+            )
     }
 }
+
+extension View {
+    func glassStyle(opacity: Double = 0.74, cornerRadius: CGFloat = 28, showBorder: Bool = false) -> some View {
+        self.modifier(GlassModifier(cornerRadius: cornerRadius, opacity: opacity, showBorder: showBorder))
+    }
+}
+
 
 
 
@@ -448,12 +421,12 @@ struct ContentView: View {
 
 import SwiftUI
 
-// MARK: - 1. 水波纹动效组件
+// MARK: - 1. 动效组件
 struct RippleCircle: View {
     @State private var scale: CGFloat = 0.2
     @State private var opacity: Double = 0.8 
     var delay: Double 
-    var isAnimating: Bool // 新增：控制动画是否执行
+    var isAnimating: Bool 
     
     var body: some View {
         Circle()
@@ -465,194 +438,182 @@ struct RippleCircle: View {
                 ),
                 lineWidth: 2
             )
-            .scaleEffect(isAnimating ? scale : 0.2) // 如果停止，恢复初始大小
-            .opacity(isAnimating ? opacity : 0.0)   // 如果停止，隐藏
-            .onAppear {
-                startAnimation()
-            }
-            .onChange(of: isAnimating) { newValue in
-                if newValue { startAnimation() }
-            }
+            .scaleEffect(isAnimating ? scale : 0.2)
+            .opacity(isAnimating ? opacity : 0.0) 
+            .onAppear { if isAnimating { startAnimation() } }
     }
     
     private func startAnimation() {
-        // 只有在 isAnimating 为 true 时才触发循环动画
-        scale = 0.2
-        opacity = 0.8
-        withAnimation(
-            Animation.easeOut(duration: 3.0)
-                .delay(delay)
-                .repeatForever(autoreverses: false)
-        ) {
+        withAnimation(Animation.easeOut(duration: 3.0).delay(delay).repeatForever(autoreverses: false)) {
             scale = 1.6
             opacity = 0.0
         }
     }
 }
 
-// MARK: - 2. 播放详情页面
+// MARK: - 2. 内部业务小组件
+struct ToolIconButton: View {
+    var icon: String
+    var title: String
+    var action: () -> Void
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 8) {
+                Image(systemName: icon).font(.system(size: 18))
+                Text(title).font(.system(size: 10))
+            }
+            .foregroundColor(.white.opacity(0.7))
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .glassStyle(opacity: 0.1, cornerRadius: 12)
+        }
+    }
+}
+
+struct ControlIconGlass: View {
+    var icon: String
+    var isMain: Bool = false
+    var body: some View {
+        ZStack {
+            Circle().fill(Color.white.opacity(0.1))
+                .overlay(Circle().stroke(LinearGradient(colors: [.white.opacity(0.4), .clear], startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 1))
+            Image(systemName: icon)
+                .font(.system(size: isMain ? 22 : 16, weight: .bold))
+                .foregroundColor(.white)
+        }
+        .frame(width: isMain ? 65 : 52, height: isMain ? 65 : 52)
+    }
+}
+
+// MARK: - 3. 主页面
 struct PlayPage: View {
     @Binding var isPresented: Bool
     @State private var selectedTab: Int = 0
     @State private var innerDragOffset: CGFloat = 0
-    @State private var isPlaying: Bool = true // 新增：播放状态管理
+    @State private var isPlaying: Bool = true
+    @State private var showInfoOverlay: Bool = false
     
     var body: some View {
         ZStack(alignment: .bottom) {
             Color(hex: "050505").ignoresSafeArea()
             
             VStack(spacing: 0) {
-                Capsule()
-                    .fill(Color.white.opacity(0.3))
-                    .frame(width: 40, height: 5)
-                    .padding(.top, 12)
+                // Header
+                ZStack(alignment: .trailing) {
+                    Capsule().fill(Color.white.opacity(0.3)).frame(width: 40, height: 5).frame(maxWidth: .infinity)
+                    Button(action: { withAnimation { showInfoOverlay = true } }) {
+                        Image("info_icon").resizable().frame(width: 24, height: 24).foregroundColor(.white)
+                    }.padding(.trailing, 25)
+                }.padding(.top, 12)
                 
+                // Title
                 VStack(spacing: 8) {
-                    Text(selectedTab == 0 ? "白噪音" : (selectedTab == 1 ? "自然之声" : "节奏"))
-                        .font(.system(size: 28, weight: .bold))
-                        .foregroundColor(.white)
-                    Text("夜间好梦")
-                        .font(.system(size: 14))
-                        .foregroundColor(.gray)
-                }
-                .padding(.top, 30)
-                
-                Spacer().frame(height: 60)
-                
-                // 水波纹与月亮图标
-                ZStack {
-                    // 联动逻辑：只有 isPlaying 为 true 时展示动效
-                    if isPlaying {
-                        ForEach(0..<3) { i in
-                            RippleCircle(delay: Double(i) * 1.0, isAnimating: isPlaying)
-                        }
-                    }
-                    
-                    Image(systemName: "moon.stars.fill")
-                        .font(.system(size: 80))
-                        .foregroundColor(.white.opacity(0.9))
-                        .shadow(color: .white.opacity(isPlaying ? 0.3 : 0.0), radius: 20)
-                }
-                .frame(width: 300, height: 300)
-                .offset(y: -10)
+                    Text(selectedTab == 0 ? "白噪音" : "自然之声").font(.system(size: 28, weight: .bold)).foregroundColor(.white)
+                    Text("夜间好梦").font(.system(size: 14)).foregroundColor(.gray)
+                }.padding(.top, 30)
                 
                 Spacer()
-            }
-            
-            VStack(spacing: 25) {
-                HStack(spacing: 12) {
-                    TabButton(title: "白噪音", isSelected: selectedTab == 0) { selectedTab = 0 }
-                    TabButton(title: "自然音", isSelected: selectedTab == 1) { selectedTab = 1 }
-                    TabButton(title: "节奏", isSelected: selectedTab == 2) { selectedTab = 2 }
-                }
-                .padding(.horizontal, 20)
                 
-                // 播放控制按钮组
-                HStack(spacing: 22) {
-                    // 修改：点击主按钮切换播放状态
-                    Button(action: {
-                        withAnimation(.spring()) {
-                            isPlaying.toggle()
+                // Animation Area
+                ZStack {
+                    if isPlaying {
+                        ForEach(0..<3) { i in RippleCircle(delay: Double(i) * 1.0, isAnimating: isPlaying) }
+                    }
+                    Image(systemName: "moon.stars.fill").font(.system(size: 80)).foregroundColor(.white.opacity(0.9))
+                }.frame(width: 250, height: 250)
+                
+                Spacer()
+                
+                // Controls Area
+                VStack(spacing: 20) {
+                    // 工具栏
+                    HStack(spacing: 10) {
+                        ToolIconButton(icon: "bubble.left", title: "反馈") {}
+                        ToolIconButton(icon: "speaker.wave.2", title: "调节") {}
+                        ToolIconButton(icon: "alarm", title: "闹钟") {}
+                        ToolIconButton(icon: "hand.raised", title: "拦截") {}
+                        ToolIconButton(icon: "waveform.path", title: "混合") {}
+                    }.padding(.horizontal, 20)
+                    
+                    // 播放按键
+                    HStack(spacing: 22) {
+                        Button(action: { withAnimation { isPlaying.toggle() } }) {
+                            ControlIconGlass(icon: isPlaying ? "pause.fill" : "play.fill", isMain: true)
                         }
-                    }) {
-                        ControlIconGlass(icon: isPlaying ? "pause.fill" : "play.fill", isMain: true)
+                        ControlIconGlass(icon: "arrow.clockwise"); ControlIconGlass(icon: "timer"); ControlIconGlass(icon: "airplayaudio")
                     }
                     
-                    ControlIconGlass(icon: "arrow.clockwise")
-                    ControlIconGlass(icon: "timer")
-                    ControlIconGlass(icon: "airplayaudio")
+                    // 发现按钮
+                    Button(action: {}) {
+                        Text("发现").font(.system(size: 18, weight: .semibold)).foregroundColor(.white)
+                            .frame(maxWidth: .infinity).frame(height: 85)
+                            .background(Color(hex: "0F0F0F").opacity(0.8))
+                            .clipShape(RoundedCorner(radius: 40, corners: [.topLeft, .topRight]))
+                    }.padding(.bottom, -15)
                 }
-                .padding(.vertical, 10)
-                
-                Button(action: { }) {
-                    Text("发现")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 85)
-                        .background(
-                            ZStack {
-                                Color(hex: "0F0F0F").opacity(0.74)
-                                LinearGradient(colors: [.white.opacity(0.15), .clear], startPoint: .topLeading, endPoint: .bottomTrailing)
-                            }
-                        )
-                        .clipShape(RoundedCorner(radius: 40, corners: [.topLeft, .topRight]))
-                        .overlay(
-                            RoundedCorner(radius: 40, corners: [.topLeft, .topRight])
-                                .stroke(Color.white.opacity(0.15), lineWidth: 1)
-                        )
-                }
-                .padding(.bottom, -15)
             }
-            .frame(maxWidth: .infinity)
-            .background(
-                Color(hex: "0F0F0F")
-                    .opacity(0.5)
-                    .blur(radius: 30)
-                    .ignoresSafeArea()
-            )
             .offset(y: innerDragOffset)
+            
+            if showInfoOverlay { infoOverlayView.transition(.move(edge: .bottom)).zIndex(2) }
         }
-        .gesture(
-            DragGesture().onChanged { v in 
-                if v.translation.height > 0 { innerDragOffset = v.translation.height } 
-            }
-            .onEnded { v in
-                if v.translation.height > 150 { 
-                    isPresented = false 
+        .gesture(DragGesture().onChanged { v in if v.translation.height > 0 { innerDragOffset = v.translation.height } }
+            .onEnded { v in if v.translation.height > 150 { isPresented = false }; withAnimation { innerDragOffset = 0 } })
+    }
+    
+    // MARK: - Info Overlay (遮罩)
+    private var infoOverlayView: some View {
+        ZStack(alignment: .bottom) {
+            Color.black.ignoresSafeArea()
+            
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 25) {
+                    VStack(spacing: 8) {
+                        Text("白噪音").font(.system(size: 28, weight: .bold)).foregroundColor(.white)
+                        Text("夜间好梦").font(.system(size: 14)).foregroundColor(.gray)
+                    }.padding(.top, 60)
+                    
+                    Image("white_icon").resizable().scaledToFit().frame(width: 120, height: 120).cornerRadius(20)
+                    Text("利用声音的力量改善睡眠").foregroundColor(.white)
+                    
+                    Divider().background(Color.white.opacity(0.2)).padding(.horizontal, 40)
+                    
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("白噪音").font(.system(size: 14)).foregroundColor(.gray)
+                        Text("白噪音是一种功率谱密度为常数的随机信号。它能有效遮盖环境中的突发噪音，帮助您更快进入深度睡眠状态。")
+                            .font(.system(size: 20, weight: .medium)).foregroundColor(.white).lineSpacing(6)
+                    }.padding(.horizontal, 30)
+                    
+                    Divider().background(Color.white.opacity(0.2)).padding(.horizontal, 40)
+                    
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("工作原理").font(.system(size: 14)).foregroundColor(.gray)
+                        Text("内置 AI 算法通过生成特定频率的声波与您的脑电波产生共鸣，降低大脑警觉度，建立稳定的睡眠节律。")
+                            .font(.system(size: 16)).foregroundColor(.white.opacity(0.9))
+                    }.padding(.horizontal, 30)
+                    
+                    Spacer().frame(height: 200)
                 }
-                withAnimation(.spring()) { innerDragOffset = 0 }
             }
-        )
-    }
-
-    // TabButton 和 ControlIconGlass 保持不变...
-    struct TabButton: View {
-        var title: String
-        var isSelected: Bool
-        var action: () -> Void
-        
-        var body: some View {
-            Button(action: action) {
-                Text(title)
-                    .font(.system(size: 14, weight: isSelected ? .bold : .medium))
-                    .foregroundColor(isSelected ? .white : .white.opacity(0.4))
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 55)
-                    .background(Color(hex: "0F0F0F").opacity(isSelected ? 0.74 : 0.2))
-                    .cornerRadius(18)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 18)
-                            .stroke(Color.white.opacity(isSelected ? 0.3 : 0.1), lineWidth: 1)
-                    )
+            .mask(LinearGradient(gradient: Gradient(stops: [.init(color: .clear, location: 0), .init(color: .black, location: 0.15), .init(color: .black, location: 0.85), .init(color: .clear, location: 1)]), startPoint: .top, endPoint: .bottom))
+            
+            // 底部悬浮按钮
+            VStack(spacing: 12) {
+                Button(action: {}) {
+                    Text("开始").font(.headline).foregroundColor(.black).frame(maxWidth: .infinity).frame(height: 56).background(Color.white).cornerRadius(28)
+                }
+                Button(action: {}) {
+                    Text("创建例行活动").font(.headline).foregroundColor(.white).frame(maxWidth: .infinity).frame(height: 56).background(Color.white.opacity(0.15)).cornerRadius(28)
+                }
             }
-        }
-    }
-
-    struct ControlIconGlass: View {
-        var icon: String
-        var isMain: Bool = false
-        
-        var body: some View {
-            ZStack {
-                Circle()
-                    .fill(Color.white.opacity(0.1))
-                    .overlay(
-                        Circle().stroke(
-                            LinearGradient(
-                                colors: [.white.opacity(0.4), .clear], 
-                                startPoint: .topLeading, 
-                                endPoint: .bottomTrailing
-                            ), 
-                            lineWidth: 1
-                        )
-                    )
-                Image(systemName: icon)
-                    .font(.system(size: isMain ? 22 : 16, weight: .bold))
-                    .foregroundColor(.white)
-                    .contentTransition(.symbolEffect(.replace)) // 增加丝滑的图标切换动画
+            .padding(25).background(Color.black.mask(LinearGradient(colors: [.clear, .black], startPoint: .top, endPoint: .bottom)))
+            
+            // 关闭按钮
+            VStack {
+                HStack { Spacer(); Button(action: { withAnimation { showInfoOverlay = false } }) {
+                    Image(systemName: "xmark.circle.fill").font(.system(size: 30)).foregroundColor(.white.opacity(0.5))
+                }.padding(25) }
+                Spacer()
             }
-            .frame(width: isMain ? 65 : 52, height: isMain ? 65 : 52)
         }
     }
 }
