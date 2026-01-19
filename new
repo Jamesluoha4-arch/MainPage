@@ -457,13 +457,12 @@ enum ActiveOverlay: Identifiable {
     var id: Int { hashValue }
 }
 
-// MARK: - 2. 动效组件
+// MARK: - 2. 动效组件 (原有水波纹)
 struct RippleCircle: View {
     @State private var scale: CGFloat = 0.2
     @State private var opacity: Double = 0.8
     var delay: Double
     var isAnimating: Bool
-    // 添加一个唯一的 ID 用于强制重置动画
     var resetID: UUID
     
     var body: some View {
@@ -478,12 +477,11 @@ struct RippleCircle: View {
             )
             .scaleEffect(isAnimating ? scale : 0.2)
             .opacity(isAnimating ? opacity : 0.0)
-            .id(resetID) // 关键：ID 改变时 View 会重新创建，从而重置动画状态
+            .id(resetID)
             .onAppear { if isAnimating { startAnimation() } }
     }
     
     private func startAnimation() {
-        // 先重置状态
         scale = 0.2
         opacity = 0.8
         withAnimation(Animation.easeOut(duration: 3.0).delay(delay).repeatForever(autoreverses: false)) {
@@ -493,6 +491,68 @@ struct RippleCircle: View {
     }
 }
 
+// MARK: - 3. 自然音粒子动效组件 (新增)
+struct ParticleSystemView: View {
+    let count = 40
+    let containerSize = CGSize(width: 300, height: 300)
+    
+    var body: some View {
+        ZStack {
+            ForEach(0..<count, id: \.self) { i in
+                SingleParticleView(
+                    isColored: i < 20, // 20个彩色，20个白色
+                    containerSize: containerSize
+                )
+            }
+        }
+        .frame(width: containerSize.width, height: containerSize.height)
+    }
+}
+
+struct SingleParticleView: View {
+    let isColored: Bool
+    let containerSize: CGSize
+    
+    @State private var position: CGPoint = .zero
+    @State private var opacity: Double = Double.random(in: 0.2...0.6)
+    @State private var scale: CGFloat = CGFloat.random(in: 0.4...1.2)
+    
+    // 彩色粒子池
+    let colorPool: [Color] = [.blue, .cyan, .mint, .indigo, .purple]
+    
+    var body: some View {
+        Circle()
+            .fill(isColored ? colorPool.randomElement()! : .white)
+            .frame(width: 4, height: 4)
+            .scaleEffect(scale)
+            .opacity(opacity)
+            .position(position)
+            .onAppear {
+                // 初始位置随机
+                position = CGPoint(
+                    x: CGFloat.random(in: 0...containerSize.width),
+                    y: CGFloat.random(in: 0...containerSize.height)
+                )
+                startFloating()
+            }
+    }
+    
+    private func startFloating() {
+        let duration = Double.random(in: 4.0...9.0)
+        withAnimation(.linear(duration: duration)) {
+            position = CGPoint(
+                x: CGFloat.random(in: 0...containerSize.width),
+                y: CGFloat.random(in: 0...containerSize.height)
+            )
+            opacity = Double.random(in: 0.2...0.7)
+        }
+        
+        // 持续递归漂浮
+        DispatchQueue.main.asyncAfter(deadline: .now() + duration) {
+            startFloating()
+        }
+    }
+}
 
 // MARK: - 主页面
 struct PlayPage: View {
@@ -503,21 +563,22 @@ struct PlayPage: View {
     @State private var showInfoOverlay: Bool = false
     
     @State private var activeOverlay: ActiveOverlay? = nil
-    @State private var isInterceptOn: Bool = false // 工具栏拦截状态
+    @State private var isInterceptOn: Bool = false
     @State private var isApplyingSound: Bool = false
     @State private var showSuccessIcon: Bool = false
     
     @State private var alarmTime = Date()
-    @State private var isBlockAppOn: Bool = false // 闹钟遮罩内部开关状态
+    @State private var isBlockAppOn: Bool = false
     @State private var isTimerActive: Bool = false
     @State private var countdownSeconds: Int = 0
     
     @State private var mixAudioEnabled: Bool = true
-    @State private var animationResetID = UUID() // 用于强制重置动效
+    @State private var animationResetID = UUID() 
     
     let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     var body: some View {
+        
         ZStack(alignment: .bottom) {
             Color(hex: "050505").ignoresSafeArea()
             
@@ -542,22 +603,43 @@ struct PlayPage: View {
                 VStack(spacing: 8) {
                     Text(selectedTab == 0 ? "白噪音" : (selectedTab == 1 ? "自然之声" : "节奏"))
                         .font(.system(size: 28, weight: .bold)).foregroundColor(.white)
-                    Text("夜间好梦").font(.system(size: 14)).foregroundColor(.gray)
-                }.padding(.top, 30)
+                    
+                    // 修改点：根据 selectedTab 切换文本内容
+                    Text(selectedTab == 1 ? "亲近自然，感受放松" : "夜间好梦")
+                        .font(.system(size: 14))
+                        .foregroundColor(.gray)
+                        .id("subtitle_\(selectedTab)") // 确保切换时产生过渡
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                }
+                .padding(.top, 30)
+                .animation(.easeInOut, value: selectedTab)
                 
                 Spacer()
                 
-                // 中央动画 - 通过 id(animationResetID) 确保重置时续播
+                // 中央区域：切换水波纹与粒子动效
                 ZStack {
-                    if isPlaying {
-                        ForEach(0..<3) { i in
-                            RippleCircle(delay: Double(i) * 1.0, isAnimating: isPlaying, resetID: animationResetID)
+                    if selectedTab == 1 {
+                        // 自然音：漂浮粒子动效
+                        ParticleSystemView()
+                            .transition(.opacity)
+                    } else {
+                        // 白噪音与节奏：月亮与水波纹
+                        ZStack {
+                            if isPlaying {
+                                ForEach(0..<3) { i in
+                                    RippleCircle(delay: Double(i) * 1.0, isAnimating: isPlaying, resetID: animationResetID)
+                                }
+                            }
+                            Image(systemName: "moon.stars.fill")
+                                .font(.system(size: 80))
+                                .foregroundColor(.white.opacity(0.9))
                         }
+                        .transition(.opacity)
                     }
-                    Image(systemName: "moon.stars.fill").font(.system(size: 80)).foregroundColor(.white.opacity(0.9))
                 }
-                .id(animationResetID)
+                .id(animationResetID) // 重置时强制刷新
                 .frame(width: 250, height: 250)
+                .animation(.easeInOut(duration: 0.6), value: selectedTab)
                 
                 Spacer()
                 
@@ -587,7 +669,6 @@ struct PlayPage: View {
                             CapsuleToolButton(icon: "bubble.left", title: "反馈") { withAnimation { activeOverlay = .feedback } }
                             CapsuleToolButton(icon: "sparkles", title: "声音编辑") { withAnimation { activeOverlay = .soundEdit } }
                             CapsuleToolButton(icon: "alarm", title: "闹钟") {
-                                // 打开闹钟时，让遮罩内的开关状态先同步工具栏当前的状态
                                 isBlockAppOn = isInterceptOn
                                 withAnimation { activeOverlay = .alarm }
                             }
@@ -598,7 +679,6 @@ struct PlayPage: View {
                     
                     // 主控制按钮
                     HStack(spacing: 30) {
-                        // 重置图标
                         Button(action: { resetPlaybackAction() }) {
                             ControlIconGlass(icon: "arrow.clockwise")
                         }.contentShape(Circle())
@@ -668,22 +748,16 @@ struct PlayPage: View {
         }
     }
 
-    // --- 逻辑函数 ---
-    
     private func resetPlaybackAction() {
-        // 先确保处于播放状态
         isPlaying = true
         withAnimation {
-            // 1. 更新 UUID 强制 RippleCircle 重新创建并启动动画
             animationResetID = UUID()
-            // 2. 隐藏工具栏计时器
             countdownSeconds = 0
             isTimerActive = false
         }
     }
 
     // --- 遮罩视图定义 ---
-    
     private var feedbackView: some View {
         VStack(spacing: 20) {
             Text("声音反馈").font(.headline).foregroundColor(.white).padding(.top, 25)
@@ -733,7 +807,6 @@ struct PlayPage: View {
                     .datePickerStyle(.wheel).labelsHidden().colorInvert().colorMultiply(.white).frame(maxWidth: .infinity)
                 Text("预计睡眠时间：\(calculateSleepTime())").font(.caption).foregroundColor(.gray)
                 
-                // 内部开关
                 Toggle("拦截干扰应用", isOn: $isBlockAppOn)
                     .foregroundColor(.white)
                     .padding()
@@ -747,10 +820,7 @@ struct PlayPage: View {
                     }.contentShape(Rectangle())
                     
                     Button(action: {
-                        // 【功能修复】：将遮罩内部的选中状态同步给工具栏
-                        // 如果 isBlockAppOn 为 false，isInterceptOn 也会变为 false（熄灭）
                         isInterceptOn = isBlockAppOn
-                        
                         startCountdown()
                         withAnimation { activeOverlay = nil }
                     }) {
