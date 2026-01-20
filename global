@@ -1,5 +1,11 @@
 import SwiftUI
 
+// 在 Global.swift 中添加或确保已有
+enum InitialAction {
+    case none
+    case showInfo // 显示信息/遮罩
+}
+
 // MARK: - 1. 颜色扩展 (支持 6 位和 8 位 Hex)
 extension Color {
     init(hex: String) {
