@@ -191,3 +191,24 @@ struct MainPlayContainer: View {
         }
     }
 }
+
+
+// 建议直接更新你 Global 文件里的 Modifier
+struct SwipeUpToCloseModifier: ViewModifier {
+    @Binding var isPresented: Bool
+    
+    func body(content: Content) -> some View {
+        content
+            .contentShape(Rectangle()) 
+            .gesture(
+                DragGesture().onEnded { value in
+                    // 关键点：height < -80 表示手指往上滑
+                    if value.translation.height < -80 {
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
+                            isPresented = false
+                        }
+                    }
+                }
+            )
+    }
+}
