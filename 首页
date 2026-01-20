@@ -389,3 +389,11 @@ struct ContentView: View {
         }
     }
 }
+
+
+MainPlayContainer(
+        isPresented: $isPlayerPresented,
+        isPlaying: $isPlaying,         // 传进首页的播放状态
+        initialCategory: currentTheme, // 初始显示的频道
+        initialAction: initialAction   // 初始动作
+    )
