@@ -1,24 +1,5 @@
 import SwiftUI
 
-enum AudioTheme {
-    case whiteNoise, nature, rhythm
-    
-    var title: String {
-        switch self {
-        case .whiteNoise: return "白噪音"
-        case .nature: return "自然之声"
-        case .rhythm: return "节奏"
-        }
-    }
-    
-    var icon: String {
-        switch self {
-        case .whiteNoise: return "moon.stars"
-        case .nature: return "leaf.fill"
-        case .rhythm: return "bolt.ring.closed"
-        }
-    }
-}
 
 // MARK: - 1. 动效组件：水波纹
 struct RippleEffectView: View {
@@ -141,7 +122,7 @@ struct SoundBubble: View {
 // MARK: - 5. 更新后的 Mini 播放栏组件
 struct MiniPlayerBar: View {
     @Binding var isPlaying: Bool
-    var currentTheme: AudioTheme
+    var currentTheme: PlaybackCategory
     
     var body: some View {
         HStack(spacing: 15) {
@@ -348,7 +329,7 @@ struct ContentView: View {
                         // 整个全屏覆盖层使用黑色背景，防止切换瞬间闪白
                         .background(Color.black.ignoresSafeArea())
         } }
-    private func switchTheme(to theme: AudioTheme) {
+    private func switchTheme(to theme: PlaybackCategory) {
             withAnimation(.easeInOut) {
                 self.currentTheme = theme
                 self.isPlaying = true // 切换主题时默认开始播放
