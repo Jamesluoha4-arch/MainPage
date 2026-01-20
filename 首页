@@ -1,5 +1,25 @@
 import SwiftUI
 
+enum AudioTheme {
+    case whiteNoise, nature, rhythm
+    
+    var title: String {
+        switch self {
+        case .whiteNoise: return "白噪音"
+        case .nature: return "自然之声"
+        case .rhythm: return "节奏"
+        }
+    }
+    
+    var icon: String {
+        switch self {
+        case .whiteNoise: return "moon.stars"
+        case .nature: return "leaf.fill"
+        case .rhythm: return "bolt.ring.closed"
+        }
+    }
+}
+
 // MARK: - 1. 动效组件：水波纹
 struct RippleEffectView: View {
     @State private var animate = false
@@ -352,25 +372,109 @@ HStack(spacing: 12) {
 }
 
 
-ZStack(alignment: .bottom) {
+struct ContentView: View {
+    // ... 现有状态 ...
+    @State private var isPlaying = false
+    @State private var currentTheme: AudioTheme = .whiteNoise // 默认为白噪音
+    
+    // 转场控制
+    @State private var showPlayer = false 
+
+    var body: some View {
+        ZStack(alignment: .bottom) {
             Color.black.ignoresSafeArea()
             
-            // ... 现有的 ScrollView 内容 ...
+            ScrollView {
+                VStack(spacing: 40) {
+                    headerAndScenesSection
+                    
+                    // 声音板块中的泡泡点击逻辑更新
+                    HStack(spacing: 12) {
+                        SoundBubble(title: "白噪音").offset(y: 20)
+                            .onTapGesture { switchTheme(to: .whiteNoise) }
+                        
+                        SoundBubble(title: "自然之声").offset(y: 120).offset(x: 40)
+                            .onTapGesture { switchTheme(to: .nature) }
+                        
+                        SoundBubble(title: "节奏").offset(y: 220).offset(x: -200)
+                            .onTapGesture { switchTheme(to: .rhythm) }
+                    }
+                    // ...
+                }
+            }
+            // 监控首页全局向下滑动
+            .gesture(
+                DragGesture().onEnded { value in
+                    if value.translation.height > 100 {
+                        withAnimation(.spring()) { showPlayer = true }
+                    }
+                }
+            )
 
-            MiniPlayerBar(isPlaying: $isPlaying)
+            // 动态 Mini Bar
+            MiniPlayerBar(isPlaying: $isPlaying, theme: currentTheme)
                 .onTapGesture {
-                    // 点击 Mini Bar 默认跳转到白噪音页
-                    withAnimation(.spring()) { showWhiteNoise = true }
+                    withAnimation(.spring()) { showPlayer = true }
                 }
         }
-        // --- 零侵入转场配置 ---
-        .fullScreenCover(isPresented: $showWhiteNoise) {
-            PlayPage(isPresented: $showWhiteNoise)
-        }
-        .fullScreenCover(isPresented: $showNature) {
-            NaturePlayPage(isPresented: $showNature)
-        }
-        .fullScreenCover(isPresented: $showRhythm) {
-            RhythmPlayPage(isPresented: $showRhythm)
+        // 根据当前 theme 弹出对应界面
+        .fullScreenCover(isPresented: $showPlayer) {
+            switch currentTheme {
+            case .whiteNoise: PlayPage(isPresented: $showPlayer)
+            case .nature: NaturePlayPage(isPresented: $showPlayer)
+            case .rhythm: RhythmPlayPage(isPresented: $showPlayer)
+            }
         }
     }
+
+    private func switchTheme(to theme: AudioTheme) {
+        withAnimation(.easeInOut) {
+            currentTheme = theme
+            isPlaying = true // 点击泡泡自动开始播放
+        }
+    }
+}
+
+
+struct MiniPlayerBar: View {
+    @Binding var isPlaying: Bool
+    var theme: AudioTheme // 接收当前主题
+    
+    var body: some View {
+        HStack(spacing: 15) {
+            ZStack {
+                if isPlaying {
+                    // 水波纹效果
+                    RippleEffectView()
+                }
+                
+                Circle()
+                    .fill(Color.white.opacity(0.1))
+                    .frame(width: 48, height: 48)
+                
+                // 动态图标：根据 theme 切换
+                Image(systemName: theme.icon)
+                    .foregroundColor(.white.opacity(0.8))
+                    .font(.system(size: 20))
+                    .id(theme.icon) // 强制 ID 切换以触发图标转场
+                    .transition(.scale.combined(with: .opacity))
+            }
+            
+            VStack(alignment: .leading, spacing: 2) {
+                Text(isPlaying ? "正在播放" : "停止播放")
+                    .font(.system(size: 12))
+                    .foregroundColor(.gray)
+                
+                // 动态标题：根据 theme 切换
+                Text(theme.title)
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(.white)
+            }
+            
+            Spacer()
+            
+            // ... 按钮保持不变 ...
+        }
+        // ... 样式保持不变 ...
+    }
+}
