@@ -1,19 +1,5 @@
 import SwiftUI
 
-enum PlaybackCategory: Int {
-    case whiteNoise = 0
-    case nature = 1
-    case rhythm = 2
-}
-
-// 浮层类型枚举（确保三个页面通用）
-enum ActiveOverlay: Identifiable {
-    case feedback, soundEdit, alarm, mix, routine
-    var id: Int { self.hashValue }
-}
-
-
-
 // MARK: - 1. 颜色扩展 (支持 6 位和 8 位 Hex)
 extension Color {
     init(hex: String) {
@@ -95,13 +81,18 @@ extension View {
         ))
     }
 }
+
+enum PlaybackCategory: Int {
+    case whiteNoise = 0
+    case nature = 1
+    case rhythm = 2
+}
 enum ActiveOverlay: Identifiable {
     case feedback, soundEdit, alarm, mix, routine
     var id: Int { self.hashValue }
 }
 
 
-// MARK: - 5. 子组件
 struct DaySelectionButton: View {
     let title: String
     @State private var isSelected: Bool = false
@@ -169,8 +160,6 @@ struct SquareIconButton: View {
             .frame(width: 85, height: 85).glassStyle(opacity: 0.1, cornerRadius: 18)
     }
 }
-
-
 struct MainPlayContainer: View {
     @Binding var isPresented: Bool
     @State private var currentCategory: PlaybackCategory = .whiteNoise
@@ -186,7 +175,7 @@ struct MainPlayContainer: View {
             // TabView 负责横向滑动切换界面
             TabView(selection: $currentCategory) {
                 // 页面 1
-                WhiteNoisePlayPage(isPresented: $isPresented, selectedTab: $currentCategory)
+                PlayPage(isPresented: $isPresented, selectedTab: $currentCategory)
                     .tag(PlaybackCategory.whiteNoise)
                 
                 // 页面 2
@@ -202,4 +191,3 @@ struct MainPlayContainer: View {
         }
     }
 }
-
