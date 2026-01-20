@@ -376,3 +376,200 @@ struct ContentView: View {
         }
     }
 }
+
+
+struct MiniPlayerBar: View {
+    @Binding var isPlaying: Bool
+    var currentTheme: AudioTheme // 新增：接收当前主题
+    
+    var body: some View {
+        HStack(spacing: 15) {
+            ZStack {
+                if isPlaying {
+                    RippleEffectView()
+                }
+                
+                Circle()
+                    .fill(Color.white.opacity(0.1))
+                    .frame(width: 48, height: 48)
+                
+                // 动态图标切换
+                Image(systemName: currentTheme.icon)
+                    .foregroundColor(.white.opacity(0.8))
+                    .font(.system(size: 20))
+                    .id(currentTheme.icon) // 增加 ID 确保图标切换时有动效
+                    .transition(.scale.combined(with: .opacity))
+            }
+            
+            VStack(alignment: .leading, spacing: 2) {
+                Text(isPlaying ? "正在播放" : "停止播放")
+                    .font(.system(size: 12))
+                    .foregroundColor(.gray)
+                
+                // 动态标题切换
+                Text(currentTheme.title)
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(.white)
+                    .id(currentTheme.title)
+                    .transition(.push(from: .bottom)) // 文字切换动效
+            }
+            
+            Spacer()
+            
+            HStack(spacing: 25) {
+                Image(systemName: "alarm").foregroundColor(.white.opacity(0.7)).font(.system(size: 20))
+                
+                Button(action: {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
+                        isPlaying.toggle()
+                    }
+                }) {
+                    Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+                        .foregroundColor(.white)
+                        .font(.system(size: 24))
+                        .frame(width: 30)
+                }
+            }
+            .padding(.trailing, 5)
+        }
+        .padding(.horizontal, 15)
+        .frame(maxWidth: .infinity)
+        .frame(height: 80)
+        .background(
+            Capsule()
+                .fill(Color(hex: "1A1A1A"))
+                .shadow(color: .black.opacity(0.5), radius: 10, y: 5)
+                .overlay(Capsule().stroke(Color.white.opacity(0.1), lineWidth: 0.5))
+        )
+        .padding(.horizontal, 20)
+        .padding(.bottom, 10)
+    }
+}
+
+
+
+struct ContentView: View {
+    @State private var bannerAnimate = false
+    @State private var soundSectionOpacity: Double = 0
+    @State private var isPlaying = false
+    
+    // --- 状态控制核心 ---
+    @State private var currentTheme: AudioTheme = .whiteNoise // 记录当前选择的主题
+    @State private var isPlayerPresented = false // 统一控制弹窗显示
+    
+    var currentDateText: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy年M月d日"
+        return formatter.string(from: Date())
+    }
+
+    var body: some View {
+        ZStack(alignment: .bottom) {
+            Color.black.ignoresSafeArea()
+            
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(spacing: 40) {
+                    headerAndScenesSection
+
+                    // 声音板块
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text("声音")
+                            .font(.system(size: 28, weight: .bold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal)
+                        
+                        Spacer().frame(height: 35)
+                        
+                        GeometryReader { proxy in
+                            let minY = proxy.frame(in: .global).minY
+                            let screenHeight = UIScreen.main.bounds.height
+                            
+                            ZStack(alignment: .topTrailing) {
+                                // ... 背景图代码保持不变 ...
+                                Image("face_lines").resizable().aspectRatio(contentMode: .fit).frame(width: 320).opacity(0.6).offset(x: 60, y: 100)
+                                Image("image_shooting_star").resizable().scaledToFit().frame(width: 140).offset(x: -15, y: -20)
+                                
+                                VStack(alignment: .leading, spacing: 20) {
+                                    // ... 用户昵称等代码保持不变 ...
+                                    VStack(alignment: .leading, spacing: 8) {
+                                        Text("晚上好").font(.system(size: 18)).foregroundColor(.white.opacity(0.8))
+                                        Text("用户昵称").font(.system(size: 18, weight: .bold)).foregroundColor(.white).padding(.vertical, 8).padding(.horizontal, 20).glassStyle(opacity: 0.3, cornerRadius: 12)
+                                        Text("现在是\(currentDateText)夜间，一起开启好梦").font(.system(size: 14)).foregroundColor(.gray)
+                                    }
+                                    
+                                    // --- 修改点：SoundBubble 的点击逻辑 ---
+                                    HStack(spacing: 12) {
+                                        SoundBubble(title: "白噪音")
+                                            .offset(y: 20)
+                                            .onTapGesture { switchTheme(to: .whiteNoise) }
+                                        
+                                        SoundBubble(title: "自然之声")
+                                            .offset(y: 120).offset(x: 40)
+                                            .onTapGesture { switchTheme(to: .nature) }
+                                        
+                                        SoundBubble(title: "节奏")
+                                            .offset(y: 220).offset(x: -200)
+                                            .onTapGesture { switchTheme(to: .rhythm) }
+                                    }
+                                    .padding(.top, 25)
+                                }
+                                .padding(.horizontal)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                            .opacity(soundSectionOpacity)
+                            .onChange(of: minY) { newValue in
+                                if newValue < screenHeight * 0.85 {
+                                    withAnimation(.easeIn(duration: 0.8)) { soundSectionOpacity = 1.0 }
+                                }
+                            }
+                        }
+                        .frame(height: 400)
+                    }
+                    .padding(.top, 20)
+                }
+                .padding(.bottom, 140)
+            }
+            // --- 修改点：首页向下滑动手势 ---
+            .gesture(
+                DragGesture().onEnded { value in
+                    // 如果向下滑动距离超过 80
+                    if value.translation.height > 80 {
+                        withAnimation(.spring()) {
+                            isPlayerPresented = true
+                        }
+                    }
+                }
+            )
+            
+            // --- 修改点：Mini Bar 传入当前主题 ---
+            MiniPlayerBar(isPlaying: $isPlaying, currentTheme: currentTheme)
+                .onTapGesture {
+                    withAnimation(.spring()) {
+                        isPlayerPresented = true
+                    }
+                }
+        }
+        // --- 修改点：统一的转场出口 ---
+        .fullScreenCover(isPresented: $isPlayerPresented) {
+            switch currentTheme {
+            case .whiteNoise:
+                PlayPage(isPresented: $isPlayerPresented)
+            case .nature:
+                NaturePlayPage(isPresented: $isPlayerPresented)
+            case .rhythm:
+                RhythmPlayPage(isPresented: $isPlayerPresented)
+            }
+        }
+    }
+    
+    // 逻辑函数：切换主题
+    private func switchTheme(to theme: AudioTheme) {
+        withAnimation(.easeInOut) {
+            self.currentTheme = theme
+            self.isPlaying = true // 切换主题时默认开始播放
+            self.isPlayerPresented = true // 点击泡泡直接进入全屏
+        }
+    }
+    
+    // ... headerAndScenesSection 代码保持不变 ...
+}
