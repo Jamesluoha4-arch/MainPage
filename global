@@ -1,5 +1,19 @@
 import SwiftUI
 
+enum PlaybackCategory: Int {
+    case whiteNoise = 0
+    case nature = 1
+    case rhythm = 2
+}
+
+// 浮层类型枚举（确保三个页面通用）
+enum ActiveOverlay: Identifiable {
+    case feedback, soundEdit, alarm, mix, routine
+    var id: Int { self.hashValue }
+}
+
+
+
 // MARK: - 1. 颜色扩展 (支持 6 位和 8 位 Hex)
 extension Color {
     init(hex: String) {
@@ -153,6 +167,39 @@ struct SquareIconButton: View {
     var body: some View {
         Image(systemName: icon).font(.system(size: 35)).foregroundColor(.white)
             .frame(width: 85, height: 85).glassStyle(opacity: 0.1, cornerRadius: 18)
+    }
+}
+
+
+struct MainPlayContainer: View {
+    @Binding var isPresented: Bool
+    @State private var currentCategory: PlaybackCategory = .whiteNoise
+    
+    // 如果想从外部指定初始进入哪个频道，可以加个构造函数
+    init(isPresented: Binding<Bool>, initialCategory: PlaybackCategory = .whiteNoise) {
+        self._isPresented = isPresented
+        self._currentCategory = State(initialValue: initialCategory)
+    }
+
+    var body: some View {
+        ZStack {
+            // TabView 负责横向滑动切换界面
+            TabView(selection: $currentCategory) {
+                // 页面 1
+                WhiteNoisePlayPage(isPresented: $isPresented, selectedTab: $currentCategory)
+                    .tag(PlaybackCategory.whiteNoise)
+                
+                // 页面 2
+                NaturePlayPage(isPresented: $isPresented, selectedTab: $currentCategory)
+                    .tag(PlaybackCategory.nature)
+                
+                // 页面 3
+                RhythmPlayPage(isPresented: $isPresented, selectedTab: $currentCategory)
+                    .tag(PlaybackCategory.rhythm)
+            }
+            .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never)) // 隐藏系统圆点
+            .ignoresSafeArea()
+        }
     }
 }
 
