@@ -197,8 +197,8 @@ struct PlayPage: View {
                 .zIndex(100)
             }
         }
-        .gesture(DragGesture().onChanged { v in if v.translation.height > 0 { innerDragOffset = v.translation.height } }
-            .onEnded { v in if v.translation.height > 150 { isPresented = false }; withAnimation { innerDragOffset = 0 } })
+        .gesture(DragGesture().onChanged { v in if v.translation.height < 0 { innerDragOffset = v.translation.height } }
+            .onEnded { v in if v.translation.height < -100 { isPresented = false }; withAnimation { innerDragOffset = 0 } })
         .onReceive(timer) { _ in updateCountdown() }
     }
 
