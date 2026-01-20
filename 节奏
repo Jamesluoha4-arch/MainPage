@@ -74,6 +74,8 @@ struct RhythmPlayPage: View {
     @State private var breakDuration: Int = 5
     @State private var sessions: Int = 1
     
+    var initialAction: InitialAction = .none
+    
     var body: some View {
         ZStack(alignment: .bottom) {
             Color(hex: "050505").ignoresSafeArea()
@@ -182,6 +184,9 @@ struct RhythmPlayPage: View {
                     }
                 }
         )
+        .onAppear{
+            showInfoOverlay = true
+                }
     }
 
 
@@ -338,6 +343,8 @@ struct RhythmInfoOverlayView: View {
         }
     }
 }
+
+
 
 
 
