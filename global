@@ -86,6 +86,22 @@ enum PlaybackCategory: Int {
     case whiteNoise = 0
     case nature = 1
     case rhythm = 2
+    
+    var title: String {
+        switch self {
+        case .whiteNoise: return "白噪音"
+        case .nature: return "自然之声"
+        case .rhythm: return "节奏"
+        }
+    }
+    
+    var icon: String {
+        switch self {
+        case .whiteNoise: return "moon.stars"
+        case .nature: return "leaf.fill"
+        case .rhythm: return "bolt.ring.closed"
+        }
+    }
 }
 enum ActiveOverlay: Identifiable {
     case feedback, soundEdit, alarm, mix, routine
@@ -193,13 +209,12 @@ struct MainPlayContainer: View {
 }
 
 
-// 建议直接更新你 Global 文件里的 Modifier
 struct SwipeUpToCloseModifier: ViewModifier {
     @Binding var isPresented: Bool
     
     func body(content: Content) -> some View {
         content
-            .contentShape(Rectangle()) 
+            .contentShape(Rectangle())
             .gesture(
                 DragGesture().onEnded { value in
                     // 关键点：height < -80 表示手指往上滑
