@@ -3,6 +3,7 @@ import SwiftUI
 // MARK: - 1. 动效组件：水波纹
 struct RippleEffectView: View {
     @State private var animate = false
+
     
     var body: some View {
         ZStack {
@@ -186,6 +187,9 @@ struct ContentView: View {
     @State private var bannerAnimate = false
     @State private var soundSectionOpacity: Double = 0
     @State private var isPlaying = false
+    @State private var showWhiteNoise = false  // 对应 PlayPage
+    @State private var showNature = false      // 对应 NaturePlayPage
+    @State private var showRhythm = false      // 对应 RhythmPlayPage
     
     var currentDateText: String {
         let formatter = DateFormatter()
@@ -322,3 +326,51 @@ struct ContentView: View {
         }
     }
 }
+
+
+HStack(spacing: 12) {
+    // 1. 白噪音入口
+    SoundBubble(title: "白噪音")
+        .offset(y: 20)
+        .onTapGesture {
+            withAnimation(.spring()) { showWhiteNoise = true }
+        }
+    
+    // 2. 自然之声入口
+    SoundBubble(title: "自然之声")
+        .offset(y: 120).offset(x: 40)
+        .onTapGesture {
+            withAnimation(.spring()) { showNature = true }
+        }
+    
+    // 3. 节奏入口
+    SoundBubble(title: "节奏")
+        .offset(y: 220).offset(x: -200)
+        .onTapGesture {
+            withAnimation(.spring()) { showRhythm = true }
+        }
+}
+
+
+ZStack(alignment: .bottom) {
+            Color.black.ignoresSafeArea()
+            
+            // ... 现有的 ScrollView 内容 ...
+
+            MiniPlayerBar(isPlaying: $isPlaying)
+                .onTapGesture {
+                    // 点击 Mini Bar 默认跳转到白噪音页
+                    withAnimation(.spring()) { showWhiteNoise = true }
+                }
+        }
+        // --- 零侵入转场配置 ---
+        .fullScreenCover(isPresented: $showWhiteNoise) {
+            PlayPage(isPresented: $showWhiteNoise)
+        }
+        .fullScreenCover(isPresented: $showNature) {
+            NaturePlayPage(isPresented: $showNature)
+        }
+        .fullScreenCover(isPresented: $showRhythm) {
+            RhythmPlayPage(isPresented: $showRhythm)
+        }
+    }
