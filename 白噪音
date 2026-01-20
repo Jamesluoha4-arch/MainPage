@@ -59,6 +59,8 @@ struct PlayPage: View {
     
     @State private var mixAudioEnabled: Bool = true
     @State private var animationResetID = UUID() // 用于强制重置动效
+    @State private var isExiting: Bool = false // 用于强制重置动效
+    
     
     let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
@@ -197,9 +199,37 @@ struct PlayPage: View {
                 .zIndex(100)
             }
         }
-        .gesture(DragGesture().onChanged { v in if v.translation.height < 0 { innerDragOffset = v.translation.height } }
-            .onEnded { v in if v.translation.height < -100 { isPresented = false }; withAnimation { innerDragOffset = 0 } })
-        .onReceive(timer) { _ in updateCountdown() }
+        .offset(y: innerDragOffset)
+        .offset(y: isExiting ? -UIScreen.main.bounds.height : 0) // 执行退出时的位移
+        .opacity(isExiting ? 0 : 1) // 退出时渐隐
+        .gesture(
+            DragGesture()
+                .onChanged { v in
+                    // 只允许向上滑动时产生位移反馈
+                    if v.translation.height < 0 {
+                        innerDragOffset = v.translation.height
+                    }
+                }
+                .onEnded { v in
+                    // 判断滑动距离是否足以触发退出 (向上划动，所以是小于 -100)
+                    if v.translation.height < -100 {
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                            isExiting = true // 触发自定义向上飞出的动画
+                            innerDragOffset = 0
+                        }
+                        
+                        // 等待动画结束后，静默关闭窗口（此时窗口已经在屏幕外，不会看到向下的动作）
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            isPresented = false
+                        }
+                    } else {
+                        // 不足以触发退出，弹回原位
+                        withAnimation(.spring()) {
+                            innerDragOffset = 0
+                        }
+                    }
+                }
+        )
     }
 
     @ViewBuilder
@@ -509,35 +539,3 @@ struct InfoOverlayView: View {
     }
 }
 
-
-.offset(y: innerDragOffset)
-.offset(y: isExiting ? -UIScreen.main.bounds.height : 0) // 执行退出时的位移
-.opacity(isExiting ? 0 : 1) // 退出时渐隐
-.gesture(
-    DragGesture()
-        .onChanged { v in
-            // 只允许向上滑动时产生位移反馈
-            if v.translation.height < 0 {
-                innerDragOffset = v.translation.height
-            }
-        }
-        .onEnded { v in
-            // 判断滑动距离是否足以触发退出 (向上划动，所以是小于 -100)
-            if v.translation.height < -100 {
-                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                    isExiting = true // 触发自定义向上飞出的动画
-                    innerDragOffset = 0
-                }
-                
-                // 等待动画结束后，静默关闭窗口（此时窗口已经在屏幕外，不会看到向下的动作）
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    isPresented = false
-                }
-            } else {
-                // 不足以触发退出，弹回原位
-                withAnimation(.spring()) {
-                    innerDragOffset = 0
-                }
-            }
-        }
-)
