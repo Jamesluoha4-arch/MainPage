@@ -1,11 +1,6 @@
 import SwiftUI
 import Combine
 
-// MARK: - 1. 功能枚举
-enum ActiveOverlay: Identifiable {
-    case feedback, soundEdit, alarm, mix, routine
-    var id: Int { hashValue }
-}
 
 // MARK: - 2. 动效组件
 struct RippleCircle: View {
@@ -47,7 +42,7 @@ struct RippleCircle: View {
 // MARK: - 主页面
 struct PlayPage: View {
     @Binding var isPresented: Bool
-    @State private var selectedTab: Int = 0
+    @Binding var selectedTab: PlaybackCategory
     @State private var innerDragOffset: CGFloat = 0
     @State private var isPlaying: Bool = true
     @State private var showInfoOverlay: Bool = false
@@ -90,7 +85,7 @@ struct PlayPage: View {
                 
                 // Title Area
                 VStack(spacing: 8) {
-                    Text(selectedTab == 0 ? "白噪音" : (selectedTab == 1 ? "自然之声" : "节奏"))
+                    Text(selectedTab == .whiteNoise ? "白噪音" : (selectedTab == .nature ? "自然之声" : "节奏"))
                         .font(.system(size: 28, weight: .bold)).foregroundColor(.white)
                     Text("夜间好梦").font(.system(size: 14)).foregroundColor(.gray)
                 }.padding(.top, 30)
@@ -114,9 +109,9 @@ struct PlayPage: View {
                 // 底部控制面板
                 VStack(spacing: 24) {
                     HStack(spacing: 12) {
-                        TabButton(title: "白噪音", isSelected: selectedTab == 0) { selectedTab = 0 }
-                        TabButton(title: "自然音", isSelected: selectedTab == 1) { selectedTab = 1 }
-                        TabButton(title: "节奏", isSelected: selectedTab == 2) { selectedTab = 2 }
+                        TabButton(title: "白噪音", isSelected: selectedTab == .whiteNoise) { withAnimation{selectedTab = .whiteNoise} }
+                        TabButton(title: "自然音", isSelected: selectedTab == .nature) { withAnimation{selectedTab = .nature} }
+                        TabButton(title: "节奏", isSelected: selectedTab == .rhythm) { withAnimation{selectedTab = .rhythm} }
                     }.padding(.horizontal, 20)
                     
                     // 横向工具栏
@@ -511,75 +506,6 @@ struct InfoOverlayView: View {
                 Spacer()
             }
         }
-    }
-}
-
-// MARK: - 5. 子组件
-struct DaySelectionButton: View {
-    let title: String
-    @State private var isSelected: Bool = false
-    
-    var body: some View {
-        Button(action: { isSelected.toggle() }) {
-            Text(title)
-                .font(.system(size: 16, weight: .medium))
-                .foregroundColor(.white)
-                .frame(width: 44, height: 44)
-                .background(Color.white.opacity(0.1))
-                .cornerRadius(8)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color.white, lineWidth: isSelected ? 2 : 0)
-                )
-        }
-    }
-}
-
-struct CapsuleToolButton: View {
-    var icon: String; var title: String; var isOn: Bool = false; var action: () -> Void
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 8) {
-                Image(systemName: icon).font(.system(size: 14))
-                Text(title).font(.system(size: 13, weight: .medium))
-            }
-            .foregroundColor(isOn ? .white : .white.opacity(0.7))
-            .padding(.horizontal, 16).frame(height: 42)
-            .background(isOn ? Color.white.opacity(0.15) : Color.clear)
-            .overlay(Capsule().stroke(Color.white.opacity(isOn ? 0.4 : 0.15), lineWidth: 1))
-        }
-        .contentShape(Capsule())
-    }
-}
-
-struct ControlIconGlass: View {
-    var icon: String; var isMain: Bool = false
-    var body: some View {
-        ZStack {
-            Circle().fill(Color.white.opacity(0.1))
-            Image(systemName: icon).font(.system(size: isMain ? 22 : 16, weight: .bold)).foregroundColor(.white)
-        }.frame(width: isMain ? 65 : 52, height: isMain ? 65 : 52)
-         .overlay(Circle().stroke(Color.white.opacity(0.15), lineWidth: 0.5))
-    }
-}
-
-struct TabButton: View {
-    var title: String; var isSelected: Bool; var action: () -> Void
-    var body: some View {
-        Button(action: action) {
-            Text(title).font(.system(size: 14, weight: isSelected ? .bold : .medium))
-                .foregroundColor(isSelected ? .white : .white.opacity(0.4))
-                .frame(maxWidth: .infinity).frame(height: 55)
-                .glassStyle(opacity: isSelected ? 0.25 : 0.08, cornerRadius: 18)
-        }.contentShape(Rectangle())
-    }
-}
-
-struct SquareIconButton: View {
-    var icon: String
-    var body: some View {
-        Image(systemName: icon).font(.system(size: 35)).foregroundColor(.white)
-            .frame(width: 85, height: 85).glassStyle(opacity: 0.1, cornerRadius: 18)
     }
 }
 
