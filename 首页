@@ -402,3 +402,21 @@ struct ContentView: View {
         }
     }
 }
+
+
+
+Group {
+                switch currentTheme {
+                case .whiteNoise:
+                    // 修复：必须传递 $currentTheme 以满足 @Binding 要求
+                    PlayPage(isPresented: $isPlayerPresented, selectedTab: $currentTheme)
+                case .nature:
+                    // 假设你的自然音页面叫 NaturePlayPage
+                    NaturePlayPage(isPresented: $isPlayerPresented, selectedTab: $currentTheme)
+                case .rhythm:
+                    // 节奏页面
+                    RhythmPlayPage(isPresented: $isPlayerPresented, selectedTab: $currentTheme)
+                }
+            }
+            // 整个全屏覆盖层使用黑色背景，防止切换瞬间闪白
+            .background(Color.black.ignoresSafeArea())
