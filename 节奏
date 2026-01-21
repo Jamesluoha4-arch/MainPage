@@ -377,3 +377,16 @@ struct RhythmInfoOverlayView: View {
         }
     }
 }
+
+HStack(spacing: 30) {
+                        Button(action: { /* 重置逻辑 */ }) { ControlIconGlass(icon: "arrow.clockwise") }
+                        // 播放按钮：直接调用音频管理器的 toggle
+                        Button(action: { 
+                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                            audio.togglePlayPause() 
+                        }) { 
+                            ControlIconGlass(icon: audio.isPlaying ? "pause.fill" : "play.fill", isMain: true) 
+                        }
+                        Button(action: { withAnimation { activeOverlay = .alarm } }) { ControlIconGlass(icon: "timer") }
+                        Button(action: { withAnimation { activeOverlay = .mix } }) { ControlIconGlass(icon: "airplayaudio") }
+                    }.padding(.bottom, 10)
