@@ -38,7 +38,7 @@ struct NaturePlayPage: View {
     @Binding var isPresented: Bool
     @Binding var selectedTab: PlaybackCategory // 默认为自然之声
     @State private var innerDragOffset: CGFloat = 0
-    @State private var isPlaying: Bool = true
+    @StateObject private var audioManager = AudioManager.shared
     @State private var showInfoOverlay: Bool = false
     
     @State private var activeOverlay: ActiveOverlay? = nil
@@ -96,7 +96,7 @@ struct NaturePlayPage: View {
                 
                 // 中央动画 - 漂浮粒子 (已更新为40个粒子)
                 ZStack {
-                    if isPlaying {
+                    if audioManager.isPlaying {
                         ForEach(0..<particles.count, id: \.self) { index in
                             FloatingParticle(color: particles[index])
                         }
@@ -111,9 +111,9 @@ struct NaturePlayPage: View {
                 // 底部控制面板 (复用逻辑)
                 VStack(spacing: 24) {
                     HStack(spacing: 12) {
-                        TabButton(title: "白噪音", isSelected: selectedTab == .whiteNoise) { withAnimation{selectedTab = .whiteNoise} }
-                        TabButton(title: "自然音", isSelected: selectedTab == .nature) { withAnimation{selectedTab = .nature} }
-                        TabButton(title: "节奏", isSelected: selectedTab == .rhythm) { withAnimation{selectedTab = .rhythm} }
+                        TabButton(title: "白噪音", isSelected: selectedTab == .whiteNoise) { withAnimation{selectedTab = .whiteNoise; audioManager.currentTab = 0} }
+                        TabButton(title: "自然音", isSelected: selectedTab == .nature) { withAnimation{selectedTab = .nature; audioManager.currentTab = 1} }
+                        TabButton(title: "节奏", isSelected: selectedTab == .rhythm) { withAnimation{selectedTab = .rhythm; audioManager.currentTab = 2} }
                     }.padding(.horizontal, 20)
                     
                     // 工具栏
@@ -148,9 +148,19 @@ struct NaturePlayPage: View {
                             ControlIconGlass(icon: "arrow.clockwise")
                         }.contentShape(Circle())
                         
-                        Button(action: { withAnimation { isPlaying.toggle() } }) {
-                            ControlIconGlass(icon: isPlaying ? "pause.fill" : "play.fill", isMain: true)
-                        }.contentShape(Circle())
+                        Button(action: {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                // 调用全局音频管理器的播放/暂停逻辑
+                                audioManager.togglePlayPause()
+                            }
+                        }) {
+                            // 根据全局播放状态切换图标
+                            ControlIconGlass(
+                                icon: audioManager.isPlaying ? "pause.fill" : "play.fill",
+                                isMain: true
+                            )
+                        }
+                        .contentShape(Circle())
                         
                         Button(action: {
                             isBlockAppOn = isInterceptOn
@@ -229,6 +239,12 @@ struct NaturePlayPage: View {
                 }
         )
         .onAppear{
+            if audioManager.currentTab != PlaybackCategory.rhythm.rawValue{
+                audioManager.currentTab = PlaybackCategory.rhythm.rawValue
+            }
+            if !audioManager.isPlaying{
+                audioManager.togglePlayPause()
+            }
             showInfoOverlay = true
                 }
     }
@@ -538,4 +554,3 @@ struct NatureInfoOverlayView: View {
         }
     }
 }
-
