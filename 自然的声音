@@ -433,7 +433,7 @@ struct NaturePlayPage: View {
  
     
     private func resetPlaybackAction() {
-        isPlaying = true
+        audioManager.isPlaying = true
         withAnimation {
             animationResetID = UUID()
             countdownSeconds = 0
@@ -450,7 +450,7 @@ struct NaturePlayPage: View {
     private func updateCountdown() {
         if isTimerActive && countdownSeconds > 0 {
             countdownSeconds -= 1
-            if countdownSeconds == 0 { isPlaying = false; isTimerActive = false }
+            if countdownSeconds == 0 { audioManager.isPlaying = false; isTimerActive = false }
         }
     }
     
