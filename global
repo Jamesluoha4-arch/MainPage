@@ -249,7 +249,7 @@ class AudioManager: ObservableObject {
     
     private var player: AVAudioPlayer?
     private var displayLink: CADisplayLink? // 使用高精度定时器同步屏幕刷新率
-    private let tracks = ["white_noise", "nature_sounds", "rhythm_beat"]
+    private let tracks = ["white_noise", "nature_sounds","rhythm_beat"]
 
     init() {
         setupAudioSession()
