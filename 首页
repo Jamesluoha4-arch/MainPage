@@ -197,7 +197,15 @@ struct ContentView: View {
     @State private var showRhythm = false      // 对应 RhythmPlayPage
     @State private var currentTheme: PlaybackCategory = .whiteNoise // 记录当前选择的主题
     @State private var isPlayerPresented = false // 统一控制弹窗显示
+    @State private var initialAction: InitialAction = .none // 统一控制弹窗显示
     
+    private func navigateTo(category:PlaybackCategory, action: InitialAction){
+        self.currentTheme = category
+        self.initialAction = action
+        withAnimation(.spring()){
+            self.isPlayerPresented = true
+        }
+    }
     
     
     var currentDateText: String {
@@ -312,18 +320,18 @@ struct ContentView: View {
                 }
         }
         // --- 零侵入转场配置 ---
-        .fullScreenCover(isPresented: $isPlayerPresented){
+        .fullScreenCover(isPresented: $isPlayerPresented, onDismiss: {initialAction = .none}){
             Group {
                             switch currentTheme {
                             case .whiteNoise:
                                 // 修复：必须传递 $currentTheme 以满足 @Binding 要求
-                                PlayPage(isPresented: $isPlayerPresented, selectedTab: $currentTheme)
+                                PlayPage(isPresented: $isPlayerPresented, selectedTab: $currentTheme, initialAction: initialAction)
                             case .nature:
                                 // 假设你的自然音页面叫 NaturePlayPage
-                                NaturePlayPage(isPresented: $isPlayerPresented, selectedTab: $currentTheme)
+                                NaturePlayPage(isPresented: $isPlayerPresented, selectedTab: $currentTheme, initialAction: initialAction)
                             case .rhythm:
                                 // 节奏页面
-                                RhythmPlayPage(isPresented: $isPlayerPresented, selectedTab: $currentTheme)
+                                RhythmPlayPage(isPresented: $isPlayerPresented, selectedTab: $currentTheme, initialAction: initialAction)
                             }
                         }
                         // 整个全屏覆盖层使用黑色背景，防止切换瞬间闪白
@@ -378,22 +386,17 @@ struct ContentView: View {
                 HStack(alignment: .top, spacing: 14) {
                     VStack(spacing: 14) {
                         SceneCard(title: "专注", imageName: "focus", height: 210, showMeteor: true)
+                            .onTapGesture { navigateTo(category: .rhythm, action: .showInfo)}
                         SceneCard(title: "创造", imageName: "create", height: 120, titleAlignment: .bottomLeading)
                     }
                     VStack(spacing: 14) {
                         SceneCard(title: "休息", imageName: "rest", height: 100, titleAlignment: .topTrailing)
+                            .onTapGesture { navigateTo(category: .whiteNoise, action: .showInfo)}
                         SceneCard(title: "冥想", imageName: "meditate", height: 190, titleAlignment: .bottomTrailing, showMeteor: true, meteorDelay: 1.0)
+                            .onTapGesture { navigateTo(category: .nature, action: .showInfo)}
                     }
                 }.padding(.horizontal)
             }
         }
     }
 }
-
-
-MainPlayContainer(
-        isPresented: $isPlayerPresented,
-        isPlaying: $isPlaying,         // 传进首页的播放状态
-        initialCategory: currentTheme, // 初始显示的频道
-        initialAction: initialAction   // 初始动作
-    )
