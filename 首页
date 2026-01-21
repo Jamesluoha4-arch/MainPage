@@ -413,3 +413,12 @@ struct ContentView: View {
         }
     }
 }
+
+
+
+
+switch category {
+    case .whiteNoise: audioManager.currentTab = 0
+    case .nature:     audioManager.currentTab = 1
+    case .rhythm:     audioManager.currentTab = 2
+    }
