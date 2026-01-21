@@ -1,4 +1,4 @@
-import SwiftUI
+ import SwiftUI
 
 
 // MARK: - 1. 动效组件：水波纹
@@ -206,6 +206,11 @@ struct ContentView: View {
     private func navigateTo(category:PlaybackCategory, action: InitialAction){
         self.currentTheme = category
         self.initialAction = action
+        switch category {
+            case .whiteNoise: audioManager.currentTab = 0
+            case .nature:     audioManager.currentTab = 1
+            case .rhythm:     audioManager.currentTab = 2
+            }
         withAnimation(.spring()){
             self.isPlayerPresented = true
         }
@@ -351,9 +356,6 @@ struct ContentView: View {
                 case .nature: audioManager.currentTab = 1
                 case .rhythm: audioManager.currentTab = 2
                 }
-                if !audioManager.isPlaying{
-                    audioManager.togglePlayPause()
-                }
                 self.isPlayerPresented = true // 点击泡泡直接进入全屏
             }
         }
@@ -413,12 +415,3 @@ struct ContentView: View {
         }
     }
 }
-
-
-
-
-switch category {
-    case .whiteNoise: audioManager.currentTab = 0
-    case .nature:     audioManager.currentTab = 1
-    case .rhythm:     audioManager.currentTab = 2
-    }
