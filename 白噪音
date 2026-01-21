@@ -544,3 +544,20 @@ struct InfoOverlayView: View {
     }
 }
 
+// 1. 在 View 顶部确保引入了全局音频管理器
+@ObservedObject var audio = AudioManager.shared
+
+// 2. 修改按钮逻辑
+Button(action: {
+    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+        // 调用全局音频管理器的播放/暂停逻辑
+        audio.togglePlayPause()
+    }
+}) {
+    // 根据全局播放状态切换图标
+    ControlIconGlass(
+        icon: audio.isPlaying ? "pause.fill" : "play.fill", 
+        isMain: true
+    )
+}
+.contentShape(Circle())
