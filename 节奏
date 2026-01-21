@@ -100,7 +100,7 @@ struct RhythmPlayPage: View {
                 Spacer()
                 
                 // 动效区域
-                RhythmGeometryView()
+                RhythmGeometryView(isPlaying: audioManager.isPlaying)
                     .frame(width: 300, height: 300)
                 
                 Spacer()
