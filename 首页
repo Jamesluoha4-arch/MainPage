@@ -121,14 +121,16 @@ struct SoundBubble: View {
 
 // MARK: - 5. 更新后的 Mini 播放栏组件
 struct MiniPlayerBar: View {
-    @Binding var isPlaying: Bool
+    @StateObject private var audiomanager = AudioManager.shared
     var currentTheme: PlaybackCategory
     
     var body: some View {
         HStack(spacing: 15) {
             ZStack {
-                if isPlaying {
+                if audioManager.isPlaying {
                     RippleEffectView()
+                        .scaleEffect(0.8 + audioManager.amplitude * 0.5)
+                        .opacity(0.5 + audioManager.amplitude * 0.5)
                 }
                 
                 Circle()
@@ -143,7 +145,7 @@ struct MiniPlayerBar: View {
             
             VStack(alignment: .leading, spacing: 2) {
                 // 实现功能：文字联动状态切换
-                Text(isPlaying ? "正在播放" : "停止播放")
+                Text(audioManager.isPlaying ? "正在播放" : "停止播放")
                     .font(.system(size: 12))
                     .foregroundColor(.gray)
                     .transition(.opacity) // 让文字切换平滑一点
@@ -162,7 +164,7 @@ struct MiniPlayerBar: View {
                 
                 Button(action: {
                     withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
-                        isPlaying.toggle()
+                        audioManager.togglePlayPause()
                     }
                 }) {
                     Image(systemName: isPlaying ? "pause.fill" : "play.fill")
@@ -191,13 +193,13 @@ struct MiniPlayerBar: View {
 struct ContentView: View {
     @State private var bannerAnimate = false
     @State private var soundSectionOpacity: Double = 0
-    @State private var isPlaying = false
     @State private var showWhiteNoise = false  // 对应 PlayPage
     @State private var showNature = false      // 对应 NaturePlayPage
     @State private var showRhythm = false      // 对应 RhythmPlayPage
     @State private var currentTheme: PlaybackCategory = .whiteNoise // 记录当前选择的主题
     @State private var isPlayerPresented = false // 统一控制弹窗显示
     @State private var initialAction: InitialAction = .none // 统一控制弹窗显示
+    @StateObject private var audiomanager = AudioManager.shared
     
     private func navigateTo(category:PlaybackCategory, action: InitialAction){
         self.currentTheme = category
@@ -313,7 +315,7 @@ struct ContentView: View {
                     
                 }
             )
-            MiniPlayerBar(isPlaying: $isPlaying, currentTheme: currentTheme)
+            MiniPlayerBar(currentTheme: currentTheme)
                 .onTapGesture {
                     // 点击 Mini Bar 默认跳转到白噪音页
                     withAnimation(.spring()) { isPlayerPresented = true }
@@ -340,7 +342,14 @@ struct ContentView: View {
     private func switchTheme(to theme: PlaybackCategory) {
             withAnimation(.easeInOut) {
                 self.currentTheme = theme
-                self.isPlaying = true // 切换主题时默认开始播放
+                switch theme {
+                case .whiteNoise: audioManager.currentTab = 0
+                case .nature: audioManager.currentTab = 1
+                case .rhythm: audioManager.currentTab = 2
+                }
+                if !audioManager.isPlaying{
+                    audioManager.togglePlayPause()
+                }
                 self.isPlayerPresented = true // 点击泡泡直接进入全屏
             }
         }
