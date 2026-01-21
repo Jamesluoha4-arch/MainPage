@@ -1,10 +1,6 @@
 import SwiftUI
-
-// 在 Global.swift 中添加或确保已有
-enum InitialAction {
-    case none
-    case showInfo // 显示信息/遮罩
-}
+import Combine
+import AVFoundation
 
 // MARK: - 1. 颜色扩展 (支持 6 位和 8 位 Hex)
 extension Color {
@@ -235,11 +231,14 @@ struct SwipeUpToCloseModifier: ViewModifier {
 }
 
 
+enum InitialAction {
+    case none
+    case showInfo // 显示信息/遮罩
+}
 
 
 
-import SwiftUI
-import AVFoundation
+
 
 class AudioManager: ObservableObject {
     static let shared = AudioManager()
@@ -254,11 +253,21 @@ class AudioManager: ObservableObject {
 
     init() {
         setupAudioSession()
+        setupTrack()
+        autoStart()
     }
 
     private func setupAudioSession() {
         try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
         try? AVAudioSession.sharedInstance().setActive(true)
+    }
+    
+    private func autoStart(){
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5){
+            if !self.isPlaying{
+                self.togglePlayPause()
+            }
+        }
     }
 
     func setupTrack() {
