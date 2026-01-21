@@ -6,6 +6,7 @@ import Combine
 struct RippleCircle: View {
     @State private var scale: CGFloat = 0.2
     @State private var opacity: Double = 0.8
+    @StateObject private var audioManager = AudioManager.shared
     var delay: Double
     var isAnimating: Bool
     // 添加一个唯一的 ID 用于强制重置动画
@@ -19,12 +20,13 @@ struct RippleCircle: View {
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 ),
-                lineWidth: 2
+                lineWidth: 2 + (audioManager.amplitude * 3)
             )
             .scaleEffect(isAnimating ? scale : 0.2)
             .opacity(isAnimating ? opacity : 0.0)
             .id(resetID) // 关键：ID 改变时 View 会重新创建，从而重置动画状态
             .onAppear { if isAnimating { startAnimation() } }
+            .animation(.interactiveSpring(), value: audioManager.amplitude)
     }
     
     private func startAnimation() {
@@ -44,7 +46,7 @@ struct PlayPage: View {
     @Binding var isPresented: Bool
     @Binding var selectedTab: PlaybackCategory
     @State private var innerDragOffset: CGFloat = 0
-    @State private var isPlaying: Bool = true
+    @StateObject private var audioManager = AudioManager.shared
     @State private var showInfoOverlay: Bool = false
     
     @State private var activeOverlay: ActiveOverlay? = nil
@@ -98,9 +100,9 @@ struct PlayPage: View {
                 
                 // 中央动画 - 通过 id(animationResetID) 确保重置时续播
                 ZStack {
-                    if isPlaying {
+                    if audioManager.isPlaying {
                         ForEach(0..<3) { i in
-                            RippleCircle(delay: Double(i) * 1.0, isAnimating: isPlaying, resetID: animationResetID)
+                            RippleCircle(delay: Double(i) * 1.0, isAnimating: audioManager.isPlaying, resetID: animationResetID)
                         }
                     }
                     Image(systemName: "moon.stars.fill").font(.system(size: 80)).foregroundColor(.white.opacity(0.9))
@@ -113,9 +115,9 @@ struct PlayPage: View {
                 // 底部控制面板
                 VStack(spacing: 24) {
                     HStack(spacing: 12) {
-                        TabButton(title: "白噪音", isSelected: selectedTab == .whiteNoise) { withAnimation{selectedTab = .whiteNoise} }
-                        TabButton(title: "自然音", isSelected: selectedTab == .nature) { withAnimation{selectedTab = .nature} }
-                        TabButton(title: "节奏", isSelected: selectedTab == .rhythm) { withAnimation{selectedTab = .rhythm} }
+                        TabButton(title: "白噪音", isSelected: selectedTab == .whiteNoise) { withAnimation{selectedTab = .whiteNoise; audioManager.currentTab = 0} }
+                        TabButton(title: "自然音", isSelected: selectedTab == .nature) { withAnimation{selectedTab = .nature; audioManager.currentTab = 1} }
+                        TabButton(title: "节奏", isSelected: selectedTab == .rhythm) { withAnimation{selectedTab = .rhythm; audioManager.currentTab = 2} }
                     }.padding(.horizontal, 20)
                     
                     // 横向工具栏
@@ -152,9 +154,19 @@ struct PlayPage: View {
                             ControlIconGlass(icon: "arrow.clockwise")
                         }.contentShape(Circle())
                         
-                        Button(action: { withAnimation { isPlaying.toggle() } }) {
-                            ControlIconGlass(icon: isPlaying ? "pause.fill" : "play.fill", isMain: true)
-                        }.contentShape(Circle())
+                        Button(action: {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                // 调用全局音频管理器的播放/暂停逻辑
+                                audioManager.togglePlayPause()
+                            }
+                        }) {
+                            // 根据全局播放状态切换图标
+                            ControlIconGlass(
+                                icon: audioManager.isPlaying ? "pause.fill" : "play.fill",
+                                isMain: true
+                            )
+                        }
+                        .contentShape(Circle())
                         
                         Button(action: {
                             isBlockAppOn = isInterceptOn
@@ -233,6 +245,12 @@ struct PlayPage: View {
                 }
         )
         .onAppear{
+            if audioManager.currentTab != PlaybackCategory.whiteNoise.rawValue{
+                audioManager.currentTab = PlaybackCategory.whiteNoise.rawValue
+            }
+            if !audioManager.isPlaying{
+                audioManager.togglePlayPause()
+            }
             showInfoOverlay = true
                 }
     }
@@ -252,7 +270,7 @@ struct PlayPage: View {
     
     private func resetPlaybackAction() {
         // 先确保处于播放状态
-        isPlaying = true
+        audioManager.isPlaying = true
         withAnimation {
             // 1. 更新 UUID 强制 RippleCircle 重新创建并启动动画
             animationResetID = UUID()
@@ -470,7 +488,7 @@ struct PlayPage: View {
     private func updateCountdown() {
         if isTimerActive && countdownSeconds > 0 {
             countdownSeconds -= 1
-            if countdownSeconds == 0 { isPlaying = false; isTimerActive = false }
+            if countdownSeconds == 0 { audioManager.isPlaying = false; isTimerActive = false }
         }
     }
     
@@ -544,20 +562,3 @@ struct InfoOverlayView: View {
     }
 }
 
-// 1. 在 View 顶部确保引入了全局音频管理器
-@ObservedObject var audio = AudioManager.shared
-
-// 2. 修改按钮逻辑
-Button(action: {
-    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-        // 调用全局音频管理器的播放/暂停逻辑
-        audio.togglePlayPause()
-    }
-}) {
-    // 根据全局播放状态切换图标
-    ControlIconGlass(
-        icon: audio.isPlaying ? "pause.fill" : "play.fill", 
-        isMain: true
-    )
-}
-.contentShape(Circle())
