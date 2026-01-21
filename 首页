@@ -121,7 +121,7 @@ struct SoundBubble: View {
 
 // MARK: - 5. 更新后的 Mini 播放栏组件
 struct MiniPlayerBar: View {
-    @StateObject private var audiomanager = AudioManager.shared
+    @StateObject private var audioManager = AudioManager.shared
     var currentTheme: PlaybackCategory
     
     var body: some View {
@@ -167,7 +167,7 @@ struct MiniPlayerBar: View {
                         audioManager.togglePlayPause()
                     }
                 }) {
-                    Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+                    Image(systemName: audioManager.isPlaying ? "pause.fill" : "play.fill")
                         .foregroundColor(.white)
                         .font(.system(size: 24))
                         .frame(width: 30)
@@ -199,7 +199,7 @@ struct ContentView: View {
     @State private var currentTheme: PlaybackCategory = .whiteNoise // 记录当前选择的主题
     @State private var isPlayerPresented = false // 统一控制弹窗显示
     @State private var initialAction: InitialAction = .none // 统一控制弹窗显示
-    @StateObject private var audiomanager = AudioManager.shared
+    @StateObject private var audioManager = AudioManager.shared
     
     private func navigateTo(category:PlaybackCategory, action: InitialAction){
         self.currentTheme = category
@@ -409,3 +409,4 @@ struct ContentView: View {
         }
     }
 }
+
