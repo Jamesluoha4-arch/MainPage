@@ -122,7 +122,9 @@ struct SoundBubble: View {
 // MARK: - 5. 更新后的 Mini 播放栏组件
 struct MiniPlayerBar: View {
     @StateObject private var audioManager = AudioManager.shared
-    var currentTheme: PlaybackCategory
+    var currentTheme: PlaybackCategory{
+        PlaybackCategory(rawValue: audioManager.currentTab) ?? .whiteNoise
+    }
     
     var body: some View {
         HStack(spacing: 15) {
@@ -315,10 +317,12 @@ struct ContentView: View {
                     
                 }
             )
-            MiniPlayerBar(currentTheme: currentTheme)
+            MiniPlayerBar()
                 .onTapGesture {
                     // 点击 Mini Bar 默认跳转到白噪音页
-                    withAnimation(.spring()) { isPlayerPresented = true }
+                    withAnimation(.spring()) {
+                        self.currentTheme = PlaybackCategory(rawValue: audioManager.currentTab) ?? .whiteNoise
+                        isPlayerPresented = true }
                 }
         }
         // --- 零侵入转场配置 ---
@@ -409,4 +413,3 @@ struct ContentView: View {
         }
     }
 }
-
