@@ -233,3 +233,80 @@ struct SwipeUpToCloseModifier: ViewModifier {
             )
     }
 }
+
+
+
+
+
+import SwiftUI
+import AVFoundation
+
+class AudioManager: ObservableObject {
+    static let shared = AudioManager()
+    
+    @Published var isPlaying: Bool = false
+    @Published var currentTab: Int = 0 { didSet { setupTrack() } }
+    @Published var amplitude: CGFloat = 0.0 // 实时振幅 (0.0 - 1.0)
+    
+    private var player: AVAudioPlayer?
+    private var displayLink: CADisplayLink? // 使用高精度定时器同步屏幕刷新率
+    private let tracks = ["white_noise", "nature_sounds", "rhythm_beat"]
+
+    init() {
+        setupAudioSession()
+    }
+
+    private func setupAudioSession() {
+        try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
+        try? AVAudioSession.sharedInstance().setActive(true)
+    }
+
+    func setupTrack() {
+        guard let url = Bundle.main.url(forResource: tracks[currentTab], withExtension: "mp3") else { return }
+        let wasPlaying = isPlaying
+        
+        do {
+            player = try AVAudioPlayer(contentsOf: url)
+            player?.isMeteringEnabled = true // 开启电平监测
+            player?.numberOfLoops = -1
+            if wasPlaying { player?.play() }
+        } catch { print("加载失败") }
+    }
+
+    func togglePlayPause() {
+        if isPlaying {
+            player?.pause()
+            stopMonitoring()
+        } else {
+            if player == nil { setupTrack() }
+            player?.play()
+            startMonitoring()
+        }
+        isPlaying.toggle()
+    }
+
+    // 使用 DisplayLink 保证动效每秒 60/120 帧的流畅度
+    private func startMonitoring() {
+        displayLink = CADisplayLink(target: self, selector: #selector(updateMeters))
+        displayLink?.add(to: .main, forMode: .common)
+    }
+
+    private func stopMonitoring() {
+        displayLink?.invalidate()
+        displayLink = nil
+        amplitude = 0
+    }
+
+    @objc private func updateMeters() {
+        guard let player = player, player.isPlaying else { return }
+        player.updateMeters()
+        
+        // 将分贝 (-60dB 到 0dB) 映射为 0.0 到 1.0 的线性数值
+        let power = player.averagePower(forChannel: 0)
+        let level = max(0.0, CGFloat(power + 60) / 60)
+        
+        DispatchQueue.main.async {
+            self.amplitude = level
+        }
+    }
+}
