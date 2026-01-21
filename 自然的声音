@@ -55,6 +55,8 @@ struct NaturePlayPage: View {
     @State private var animationResetID = UUID()
     @State private var isExiting: Bool = false // 用于强制重置动效
     
+    var initialAction: InitialAction = .none
+    
     let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     // 定义40个粒子：20个白色，20个彩色
@@ -226,6 +228,9 @@ struct NaturePlayPage: View {
                     }
                 }
         )
+        .onAppear{
+            showInfoOverlay = true
+                }
     }
 
 
@@ -409,8 +414,7 @@ struct NaturePlayPage: View {
     }
 
 
-    // ... 此处省略 feedbackView, soundEditView, alarmFullScreenView, mixView, routineFullScreenView 的定义 (与原文件一致)
-    // 需要确保这些私有属性完整复制过来或抽取为全局组件
+ 
     
     private func resetPlaybackAction() {
         isPlaying = true
@@ -534,3 +538,4 @@ struct NatureInfoOverlayView: View {
         }
     }
 }
+
