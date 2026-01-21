@@ -300,80 +300,80 @@ struct RhythmPlayPage: View {
 }
 
 // MARK: - 5. 节奏信息详情页
-var body: some View {
-    ZStack(alignment: .bottom) { // 核心：强制所有内容底部对齐
-        Color.black.ignoresSafeArea()
-        
-        // 1. 中间滚动内容层
-        ScrollView {
-            VStack(spacing: 0) {
-                VStack(spacing: 8) {
-                    Text("节奏").font(.system(size: 28, weight: .bold)).foregroundColor(.white)
-                    Text("工作时间集中注意力").font(.system(size: 16)).foregroundColor(.gray)
-                }.padding(.top, 60)
-                
-                ZStack {
-                    Circle().stroke(Color.white.opacity(0.1), lineWidth: 1)
-                    Image(systemName: "timer").font(.system(size: 80)).foregroundColor(.white)
-                }.frame(width: 200, height: 200).padding(.vertical, 50)
-                
-                Text("节奏变化，快速进入状态").font(.system(size: 18)).foregroundColor(.white).padding(.bottom, 30)
-                
-                VStack(alignment: .leading, spacing: 25) {
-                    Divider().background(Color.white.opacity(0.2))
-                    Text("节奏").font(.system(size: 14)).foregroundColor(.gray)
-                    Text("节奏是高效工作的底层协议。通过音频律动的引导，使大脑皮层进入稳态，降低对环境噪音的敏感度。")
-                        .font(.system(size: 20, weight: .medium)).foregroundColor(.white).lineSpacing(8)
+struct RhythmInfoOverlayView: View {
+    var onClose: () -> Void
+    var showRoutineAction:() -> Void
+    var body: some View {
+        ZStack(alignment: .bottom) { // 核心：强制所有内容底部对齐
+            Color.black.ignoresSafeArea()
+            
+            // 1. 中间滚动内容层
+            ScrollView {
+                VStack(spacing: 0) {
+                    VStack(spacing: 8) {
+                        Text("节奏").font(.system(size: 28, weight: .bold)).foregroundColor(.white)
+                        Text("工作时间集中注意力").font(.system(size: 16)).foregroundColor(.gray)
+                    }.padding(.top, 60)
                     
-                    Divider().background(Color.white.opacity(0.2))
-                    Text("原理").font(.system(size: 14)).foregroundColor(.gray)
-                    Text("利用双耳节拍技术模拟 Alpha 和 Beta 脑电波，在专注阶段提供稳定的背景支撑。").foregroundColor(.gray)
-                }.padding(.horizontal, 30)
-                
-                // 给底部按钮留出足够的空白占位，确保滚动不到底时不会被遮挡
-                Spacer(minLength: 180) 
-            }
-        }
-        
-        // 2. 底部固定按钮层（放在 ScrollView 外面）
-        VStack(spacing: 12) {
-            Button(action: onClose) {
-                Text("开始").font(.system(size: 18, weight: .bold)).foregroundColor(.black)
-                    .frame(maxWidth: .infinity).frame(height: 56)
-                    .background(Color.white).cornerRadius(16)
+                    ZStack {
+                        Circle().stroke(Color.white.opacity(0.1), lineWidth: 1)
+                        Image(systemName: "timer").font(.system(size: 80)).foregroundColor(.white)
+                    }.frame(width: 200, height: 200).padding(.vertical, 50)
+                    
+                    Text("节奏变化，快速进入状态").font(.system(size: 18)).foregroundColor(.white).padding(.bottom, 30)
+                    
+                    VStack(alignment: .leading, spacing: 25) {
+                        Divider().background(Color.white.opacity(0.2))
+                        Text("节奏").font(.system(size: 14)).foregroundColor(.gray)
+                        Text("节奏是高效工作的底层协议。通过音频律动的引导，使大脑皮层进入稳态，降低对环境噪音的敏感度。")
+                            .font(.system(size: 20, weight: .medium)).foregroundColor(.white).lineSpacing(8)
+                        
+                        Divider().background(Color.white.opacity(0.2))
+                        Text("原理").font(.system(size: 14)).foregroundColor(.gray)
+                        Text("利用双耳节拍技术模拟 Alpha 和 Beta 脑电波，在专注阶段提供稳定的背景支撑。").foregroundColor(.gray)
+                    }.padding(.horizontal, 30)
+                    
+                    // 给底部按钮留出足够的空白占位，确保滚动不到底时不会被遮挡
+                    Spacer(minLength: 180)
+                }
             }
             
-            Button(action: showRoutineAction) {
-                Text("创建例行活动").font(.system(size: 18, weight: .bold)).foregroundColor(.white)
-                    .frame(maxWidth: .infinity).frame(height: 56)
-                    .background(Color.white.opacity(0.1)).cornerRadius(16)
-            }
-        }
-        .padding(.horizontal, 25)
-        .padding(.bottom, 40) // 距离屏幕底部的安全距离
-        .background(
-            // 这里加个背景色渐变，可以防止滚动的内容穿透按钮
-            LinearGradient(gradient: Gradient(colors: [.clear, .black.opacity(0.8), .black]), startPoint: .top, endPoint: .center)
-        )
-        
-        // 3. 顶部的关闭按钮（独立层级）
-        VStack {
-            HStack {
-                Spacer()
+            // 2. 底部固定按钮层（放在 ScrollView 外面）
+            VStack(spacing: 12) {
                 Button(action: onClose) {
-                    Image(systemName: "xmark")
-                        .padding(12)
-                        .background(Color.white.opacity(0.1))
-                        .clipShape(Circle())
-                        .foregroundColor(.white)
+                    Text("开始").font(.system(size: 18, weight: .bold)).foregroundColor(.black)
+                        .frame(maxWidth: .infinity).frame(height: 56)
+                        .background(Color.white).cornerRadius(16)
                 }
-                .padding(25)
+                
+                Button(action: showRoutineAction) {
+                    Text("创建例行活动").font(.system(size: 18, weight: .bold)).foregroundColor(.white)
+                        .frame(maxWidth: .infinity).frame(height: 56)
+                        .background(Color.white.opacity(0.1)).cornerRadius(16)
+                }
             }
-            Spacer()
+            .padding(.horizontal, 25)
+            .padding(.bottom, 40) // 距离屏幕底部的安全距离
+            .background(
+                // 这里加个背景色渐变，可以防止滚动的内容穿透按钮
+                LinearGradient(gradient: Gradient(colors: [.clear, .black.opacity(0.8), .black]), startPoint: .top, endPoint: .center)
+            )
+            
+            // 3. 顶部的关闭按钮（独立层级）
+            VStack {
+                HStack {
+                    Spacer()
+                    Button(action: onClose) {
+                        Image(systemName: "xmark")
+                            .padding(12)
+                            .background(Color.white.opacity(0.1))
+                            .clipShape(Circle())
+                            .foregroundColor(.white)
+                    }
+                    .padding(25)
+                }
+                Spacer()
+            }
         }
     }
 }
-    }
-    
-}
-
