@@ -61,6 +61,8 @@ struct PlayPage: View {
     @State private var animationResetID = UUID() // 用于强制重置动效
     @State private var isExiting: Bool = false // 用于强制重置动效
     
+    var initialAction: InitialAction = .none
+    
     
     let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
@@ -230,6 +232,9 @@ struct PlayPage: View {
                     }
                 }
         )
+        .onAppear{
+            showInfoOverlay = true
+                }
     }
 
     @ViewBuilder
